@@ -9,6 +9,9 @@ const DatosGenerales = require('./models/DatosGenerales');
 const TransporteMercancias = require('./models/TransporteMercancias');
 const Guias = require('./models/Guias');
 const cors = require('cors'); // Importa el paquete cors
+const Contenedores = require('./models/Contenedores');
+const Facturas = require('./models/Facturas');
+const FechasPedimento = require('./models/FechasPedimento');
 // Importa otros modelos según sea necesario
 
 const app = express();
@@ -54,6 +57,21 @@ const fileToTable = {
     columns: ['Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho', 'Numero_Guia_Manifiesto', 'Clave_Tipo_Guia', 'Fecha_Pago_Real'],
     dateColumns: ['Fecha_Pago_Real']
   },
+  '_504.asc': {
+    tableName: 'Contenedores',
+    columns: ['Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho', 'Numero_Contenedor', 'Clave_Tipo_Contenedor', 'Fecha_Pago_Real'],
+    dateColumns: ['Fecha_Pago_Real']
+  },
+  '_505.asc': {
+    tableName: 'Facturas',
+    columns: ['Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho', 'Fecha_Facturacion', 'Numero_Factura', 'Clave_Termino_Facturacion', 'Clave_Moneda_Facturacion', 'Valor_Dolares', 'Valor_Moneda_Extranjera', 'Clave_Pais_Facturacion', 'Clave_Entidad_Federativa_Facturacion', 'Identificacion_Fiscal_Proveedor', 'Proveedor_Mercancia', 'Calle_Domicilio_Proveedor', 'Numero_Interior_Domicilio_Proveedor', 'Numero_Exterior_Domicilio_Proveedor', 'Codigo_Postal_Domicilio_Proveedor', 'Municipio_Ciudad_Domicilio_Proveedor', 'Fecha_Pago_Real'],
+    dateColumns: ['Fecha_Facturacion', 'Fecha_Pago_Real']
+  },
+  '_506.asc': {
+    tableName: 'FechasPedimento',
+    columns: ['Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho', 'Clave_Tipo_Fecha', 'Fecha_Operacion', 'Fecha_Validacion_Pago_Real'],
+    dateColumns: ['Fecha_Operacion', 'Fecha_Validacion_Pago_Real']
+  },
   // Añade más configuraciones para otras terminaciones de archivos .asc
 };
 
@@ -66,6 +84,9 @@ const fileToTable = {
     DatosGenerales.init(sequelize);
     TransporteMercancias.init(sequelize);
     Guias.init(sequelize);
+    Contenedores.init(sequelize);
+    Facturas.init(sequelize);
+    FechasPedimento.init(sequelize);
 
     // Sincroniza los modelos con la base de datos
     await sequelize.sync();
