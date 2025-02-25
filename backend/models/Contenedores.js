@@ -1,9 +1,9 @@
 const { Model, DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-class Guias extends Model {}
+class Contenedores extends Model {}
 
-Guias.init({
+Contenedores.init({
   Patente_Aduanal: {
     type: DataTypes.CHAR(4),
     allowNull: false,
@@ -19,12 +19,12 @@ Guias.init({
     allowNull: false,
     primaryKey: true
   },
-  Numero_Guia_Manifiesto: {
-    type: DataTypes.CHAR(20),
+  Numero_Contenedor: {
+    type: DataTypes.CHAR(12),
     allowNull: true,
   },
-  Clave_Tipo_Guia: {
-    type: DataTypes.CHAR(1),
+  Clave_Tipo_Contenedor: {
+    type: DataTypes.INTEGER,
     allowNull: true,
   },
   Fecha_Pago_Real: {
@@ -33,9 +33,9 @@ Guias.init({
   },
 }, {
   sequelize,
-  modelName: 'Guias',
-  tableName: '503_Guias',
+  modelName: 'Contenedores',
+  tableName: '504_Contenedores',
   timestamps: false,
 });
 
-module.exports = Guias;
+module.exports = Contenedores; 

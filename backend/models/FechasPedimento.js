@@ -1,9 +1,9 @@
 const { Model, DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-class Guias extends Model {}
+class FechasPedimento extends Model {}
 
-Guias.init({
+FechasPedimento.init({
   Patente_Aduanal: {
     type: DataTypes.CHAR(4),
     allowNull: false,
@@ -19,23 +19,23 @@ Guias.init({
     allowNull: false,
     primaryKey: true
   },
-  Numero_Guia_Manifiesto: {
-    type: DataTypes.CHAR(20),
+  Clave_Tipo_Fecha: {
+    type: DataTypes.INTEGER,
     allowNull: true,
   },
-  Clave_Tipo_Guia: {
-    type: DataTypes.CHAR(1),
+  Fecha_Operacion: {
+    type: DataTypes.DATE,
     allowNull: true,
   },
-  Fecha_Pago_Real: {
+  Fecha_Validacion_Pago_Real: {
     type: DataTypes.DATE,
     allowNull: true,
   },
 }, {
   sequelize,
-  modelName: 'Guias',
-  tableName: '503_Guias',
+  modelName: 'FechasPedimento',
+  tableName: '506_Fechas_pedimento',
   timestamps: false,
 });
 
-module.exports = Guias;
+module.exports = FechasPedimento; 
