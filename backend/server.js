@@ -12,6 +12,9 @@ const cors = require('cors'); // Importa el paquete cors
 const Contenedores = require('./models/Contenedores');
 const Facturas = require('./models/Facturas');
 const FechasPedimento = require('./models/FechasPedimento');
+const CasosPedimento = require('./models/CasosPedimento');
+const CuentasAduanerasGarantiaPedimento = require('./models/CuentasAduanerasGarantiaPedimento');
+const TasasPedimento = require('./models/TasasPedimento');
 // Importa otros modelos según sea necesario
 
 const app = express();
@@ -72,6 +75,32 @@ const fileToTable = {
     columns: ['Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho', 'Clave_Tipo_Fecha', 'Fecha_Operacion', 'Fecha_Validacion_Pago_Real'],
     dateColumns: ['Fecha_Operacion', 'Fecha_Validacion_Pago_Real']
   },
+  '_507.asc': {
+    tableName: 'CasosPedimento',
+    columns: ['Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho', 'Clave_Caso', 'Identificador_Caso', 'Clave_Tipo_Pedimento', 'Complemento_Caso', 'Fecha_Validacion_Pago_Real'],
+    dateColumns: ['Fecha_Validacion_Caso_Real']
+  },
+  '_508.asc': {
+    tableName: 'CuentasAduanerasGarantiaPedimento',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Clave_Institucion_Emisor', 'Numero_Cuenta', 'Folio_Constancia',
+      'Fecha_Constancia', 'Clave_Tipo_Cuenta', 'Clave_Garantia',
+      'Valor_Unitario_Titulo', 'Total_Garantia',
+      'Cantidad_Unidades_Medida_Precio_Estimado', 'Titulos_Asignados',
+      'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Constancia', 'Fecha_Pago_Real']
+  },
+  '_509.asc': {
+    tableName: 'TasasPedimento',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Clave_Contribucion', 'Tasa_Contribucion', 'Clave_Tipo_Tasa',
+      'Clave_Tipo_Pedimento', 'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Pago_Real']
+  },
   // Añade más configuraciones para otras terminaciones de archivos .asc
 };
 
@@ -87,6 +116,9 @@ const fileToTable = {
     Contenedores.init(sequelize);
     Facturas.init(sequelize);
     FechasPedimento.init(sequelize);
+    CasosPedimento.init(sequelize);
+    CuentasAduanerasGarantiaPedimento.init(sequelize);
+    TasasPedimento.init(sequelize);
 
     // Sincroniza los modelos con la base de datos
     await sequelize.sync();
@@ -130,16 +162,29 @@ app.post('/upload', upload.single('file'), async (req, res) => {
           }
           dateColumns.forEach((col) => {
             if (row[col]) {
-              row[col] = new Date(row[col]);
+              const date = new Date(row[col]);
+              if (!isNaN(date.getTime())) {
+                row[col] = date;
+              } else {
+                console.error(`Fecha inválida para la columna ${col}:`, row[col]);
+                row[col] = null; // O maneja el error de otra manera
+              }
             }
           });
 
+          console.log(`Intentando insertar en la tabla ${tableName}:`, row); // Log de los datos a insertar
+
           try {
             // Inserta el registro en la tabla correspondiente
-            await sequelize.models[tableName].create(row, { ignoreDuplicates: false });
+            await sequelize.models[tableName].create(row);
             console.log(`Registro insertado en la tabla ${tableName}:`, row);
           } catch (err) {
             console.error(`Error al insertar en la tabla ${tableName}:`, err);
+            if (err.name === 'SequelizeUniqueConstraintError') {
+              console.log(`Registro duplicado ignorado en la tabla ${tableName}:`, row);
+            } else {
+              console.error(`Error al insertar en la tabla ${tableName}:`, err);
+            }
           }
         })
         .on('end', () => {
