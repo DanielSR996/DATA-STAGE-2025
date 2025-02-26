@@ -1,0 +1,73 @@
+const { Model, DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
+
+class CuentasAduanerasGarantiaPedimento extends Model {}
+
+CuentasAduanerasGarantiaPedimento.init({
+  Patente_Aduanal: {
+    type: DataTypes.CHAR(4),
+    allowNull: false,
+    primaryKey: true
+  },
+  Numero_Pedimento: {
+    type: DataTypes.CHAR(7),
+    allowNull: false,
+    primaryKey: true
+  },
+  Clave_Sec_Aduanera_Despacho: {
+    type: DataTypes.CHAR(3),
+    allowNull: false,
+    primaryKey: true
+  },
+  Clave_Institucion_Emisor: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  Numero_Cuenta: {
+    type: DataTypes.BIGINT,
+    allowNull: true,
+  },
+  Folio_Constancia: {
+    type: DataTypes.CHAR(17),
+    allowNull: true,
+  },
+  Fecha_Constancia: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  Clave_Tipo_Cuenta: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  Clave_Garantia: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  Valor_Unitario_Titulo: {
+    type: DataTypes.DECIMAL(14, 4),
+    allowNull: true,
+  },
+  Total_Garantia: {
+    type: DataTypes.DECIMAL(14, 2),
+    allowNull: true,
+  },
+  Cantidad_Unidades_Medida_Precio_Estimado: {
+    type: DataTypes.DECIMAL(14, 4),
+    allowNull: true,
+  },
+  Titulos_Asignados: {
+    type: DataTypes.DECIMAL(11, 4),
+    allowNull: true,
+  },
+  Fecha_Pago_Real: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+}, {
+  sequelize,
+  modelName: 'CuentasAduanerasGarantiaPedimento',
+  tableName: '508_Cuentas_aduaneras_garantia_pedimento',
+  timestamps: false,
+});
+
+module.exports = CuentasAduanerasGarantiaPedimento; 
