@@ -20,6 +20,9 @@ const ObservacionesPedimento = require('./models/ObservacionesPedimento');
 const DescargosMercancias = require('./models/DescargosMercancias');
 const DestinatariosMercancia = require('./models/DestinatariosMercancia');
 const Partidas = require('./models/Partidas');
+const Mercancias = require('./models/Mercancias');
+const PermisoPartida = require('./models/PermisoPartida');
+const CasosPartida = require('./models/CasosPartida');
 // Importa otros modelos según sea necesario
 
 const app = express();
@@ -162,6 +165,34 @@ const fileToTable = {
     ],
     dateColumns: ['Fecha_Pago_Real']
   },
+  '_552.asc': {
+    tableName: 'Mercancias',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Fraccion_Arancelaria', 'Secuencia_Fraccion_Arancelaria', 'VIN_Numero_Serie',
+      'Kilometraje_Vehiculo', 'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Pago_Real']
+  },
+  '_553.asc': {
+    tableName: 'PermisoPartida',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Fraccion_Arancelaria', 'Secuencia_Fraccion_Arancelaria', 'Clave_Permiso',
+      'Firma_Descargo', 'Numero_Permiso', 'Valor_Comercial_Dolares',
+      'Cantidad_Mercancia_Unidades_Medida_Tarifa', 'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Pago_Real']
+  },
+  '_554.asc': {
+    tableName: 'CasosPartida',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Fraccion_Arancelaria', 'Secuencia_Fraccion_Arancelaria', 'Clave_Caso',
+      'Identificador_Caso', 'Complemento_Caso', 'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Pago_Real']
+  },
   // Añade más configuraciones para otras terminaciones de archivos .asc
 };
 
@@ -185,6 +216,9 @@ const fileToTable = {
     DescargosMercancias.init(sequelize);
     DestinatariosMercancia.init(sequelize);
     Partidas.init(sequelize);
+    Mercancias.init(sequelize);
+    PermisoPartida.init(sequelize);
+    CasosPartida.init(sequelize);
 
     // Sincroniza los modelos con la base de datos
     await sequelize.sync();
