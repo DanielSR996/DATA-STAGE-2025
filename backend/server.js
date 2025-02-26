@@ -15,6 +15,11 @@ const FechasPedimento = require('./models/FechasPedimento');
 const CasosPedimento = require('./models/CasosPedimento');
 const CuentasAduanerasGarantiaPedimento = require('./models/CuentasAduanerasGarantiaPedimento');
 const TasasPedimento = require('./models/TasasPedimento');
+const ContribucionesPedimento = require('./models/ContribucionesPedimento');
+const ObservacionesPedimento = require('./models/ObservacionesPedimento');
+const DescargosMercancias = require('./models/DescargosMercancias');
+const DestinatariosMercancia = require('./models/DestinatariosMercancia');
+const Partidas = require('./models/Partidas');
 // Importa otros modelos según sea necesario
 
 const app = express();
@@ -101,6 +106,62 @@ const fileToTable = {
     ],
     dateColumns: ['Fecha_Pago_Real']
   },
+  '_510.asc': {
+    tableName: 'ContribucionesPedimento',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Clave_Contribucion', 'Clave_Forma_Pago', 'Importe_Pago',
+      'Clave_Tipo_Pedimento', 'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Pago_Real']
+  },
+  '_511.asc': {
+    tableName: 'ObservacionesPedimento',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Secuencia_Observacion', 'Observaciones', 'Clave_Tipo_Pedimento',
+      'Fecha_Validacion_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Validacion_Pago_Real']
+  },
+  '_512.asc': {
+    tableName: 'DescargosMercancias',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Patente_Aduanal_Original', 'Numero_Pedimento_Original',
+      'Clave_Sec_Aduanera_Despacho_Original', 'Clave_Documento_Original',
+      'Fecha_Operacion_Original', 'Fraccion_Arancelaria_Original', '	Clave_Unidad_Medida_Original',
+      'Cantidad_Mercancia_Descargada', 'Clave_Tipo_Pedimento', 'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Operacion_Original', 'Fecha_Pago_Real']
+  },
+  '_520.asc': {
+    tableName: 'DestinatariosMercancia',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Identificacion_Fiscal_Destinatario', 'Nombre_Destinatario', 'Calle_Domicilio_Destinatario',
+      'Numero_Interior_Domicilio_Destinatario', 'Numero_Exterior_Domicilio_Destinatario',
+      'Codigo_Postal_Domicilio_Destinatario', 'Municipio_Ciudad_Domicilio_Destinatario',
+      'Clave_Pais_Domicilio_Destinatario', 'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Pago_Real']
+  },
+  '_551.asc': {
+    tableName: 'Partidas',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Fraccion_Arancelaria', 'Secuencia_Fraccion_Arancelaria', 'Subdivision_Fraccion_Arancelaria',
+      'Descripcion_Mercancia', 'Precio_Unitario', 'Valor_Aduana', 'Valor_Comercial',
+      'Valor_Dolares', 'Cantidad_Mercancias_Unidad_Medida_Comercial', 'Clave_Unidad_Medida_Comercial',
+      'Cantidad_Mercancia_Unidad_Medida_Tarifa', 'Clave_Unidad_Medida_Tarifa', 'Valor_Agregado',
+      'Clave_Vinculacion', 'Clave_Metodo_Valorizacion', 'Codigo_Mercancia_Producto',
+      'Marca_Mercancia_Producto', 'Modelo_Mercancia_Producto', 'Clave_Pais_Origen_Destino',
+      'Clave_Pais_Comprador_Vendedor', 'Clave_Entidad_Federativa_Origen', 'Clave_Entidad_Federativa_Destino',
+      'Clave_Entidad_Federativa_Comprador', 'Clave_Entidad_Federativa_Vendedor', 'Clave_Tipo_Operacion',
+      'Clave_Documento', 'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Pago_Real']
+  },
   // Añade más configuraciones para otras terminaciones de archivos .asc
 };
 
@@ -119,6 +180,11 @@ const fileToTable = {
     CasosPedimento.init(sequelize);
     CuentasAduanerasGarantiaPedimento.init(sequelize);
     TasasPedimento.init(sequelize);
+    ContribucionesPedimento.init(sequelize);
+    ObservacionesPedimento.init(sequelize);
+    DescargosMercancias.init(sequelize);
+    DestinatariosMercancia.init(sequelize);
+    Partidas.init(sequelize);
 
     // Sincroniza los modelos con la base de datos
     await sequelize.sync();
