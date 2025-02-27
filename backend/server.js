@@ -23,6 +23,11 @@ const Partidas = require('./models/Partidas');
 const Mercancias = require('./models/Mercancias');
 const PermisoPartida = require('./models/PermisoPartida');
 const CasosPartida = require('./models/CasosPartida');
+const CuentasAduanerasGarantiaPartida = require('./models/CuentasAduanerasGarantiaPartida');
+const TasasContribucionesPartida = require('./models/TasasContribucionesPartida');
+const ContribucionesPartida = require('./models/ContribucionesPartida');
+const ObservacionesPartida = require('./models/ObservacionesPartida');
+const Rectificaciones = require('./models/Rectificaciones');
 // Importa otros modelos según sea necesario
 
 const app = express();
@@ -193,6 +198,55 @@ const fileToTable = {
     ],
     dateColumns: ['Fecha_Pago_Real']
   },
+  '_555.asc': {
+    tableName: 'CuentasAduanerasGarantiaPartida',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Fraccion_Arancelaria', 'Secuencia_Fraccion_Arancelaria', 'Clave_Institucion_Emisor',
+      'Numero_Cuenta', 'Folio_Constancia', 'Fecha_Constancia', 'Clave_Garantia',
+      'Valor_Unitario_Titulo', 'Total_Garantia', 'Cantidad_Unidades_Medida_Precio_Estimado',
+      'Titulos_Asignados', 'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Constancia', 'Fecha_Pago_Real']
+  },
+  '_556.asc': {
+    tableName: 'TasasContribucionesPartida',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Fraccion_Arancelaria', 'Secuencia_Fraccion_Arancelaria', 'Clave_Contribucion',
+      'Tasa_Contribucion', 'Clave_Tipo_Tasa', 'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Pago_Real']
+  },
+  '_557.asc': {
+    tableName: 'ContribucionesPartida',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Fraccion_Arancelaria', 'Secuencia_Fraccion_Arancelaria', 'Clave_Contribucion',
+      'Clave_Forma_Pago', 'Importe_Pago', 'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Pago_Real']
+  },
+  '_558.asc': {
+    tableName: 'ObservacionesPartida',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Fraccion_Arancelaria', 'Secuencia_Fraccion_Arancelaria', 'Secuencia_Observacion',
+      'Observaciones', 'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Pago_Real']
+  },
+  '_701.asc': {
+    tableName: 'Rectificaciones',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Clave_Documento', 'Fecha_Pago', 'Numero_Pedimento_Anterior',
+      'Patente_Aduanal_Anterior', 'Clave_Sec_Aduanera_Despacho_Anterior',
+      'Clave_Documento_Anterior', 'Fecha_Operacion_Anterior', 'Numero_Pedimento_Original',
+      'Patente_Aduanal_Original', 'Clave_Sec_Aduanera_Despacho_Original', 'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Pago', 'Fecha_Operacion_Anterior', 'Fecha_Pago_Real']
+  },
   // Añade más configuraciones para otras terminaciones de archivos .asc
 };
 
@@ -219,6 +273,11 @@ const fileToTable = {
     Mercancias.init(sequelize);
     PermisoPartida.init(sequelize);
     CasosPartida.init(sequelize);
+    CuentasAduanerasGarantiaPartida.init(sequelize);
+    TasasContribucionesPartida.init(sequelize);
+    ContribucionesPartida.init(sequelize);
+    ObservacionesPartida.init(sequelize);
+    Rectificaciones.init(sequelize);
 
     // Sincroniza los modelos con la base de datos
     await sequelize.sync();
