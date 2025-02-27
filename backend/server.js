@@ -332,6 +332,25 @@ const fileToTable = {
   }
 })();
 
+// Función para verificar la coincidencia de Total_Fracciones
+async function verificarTotalFracciones(folio, totalFraccionesDeclarado) {
+  try {
+    // Calcula el total de fracciones en la tabla 551_Partidas para el folio dado
+    const totalFraccionesCalculado = await sequelize.models.Partidas.count({
+      where: { Folio: folio }
+    });
+
+    if (totalFraccionesCalculado !== totalFraccionesDeclarado) {
+      console.warn(`Alerta: El Total_Fracciones declarado (${totalFraccionesDeclarado}) no coincide con el calculado (${totalFraccionesCalculado}) para el folio ${folio}.`);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error al verificar Total_Fracciones:', error);
+    return false;
+  }
+}
+
 // Endpoint para manejar la subida de archivos
 app.post('/upload', upload.single('file'), async (req, res) => {
   try {
@@ -392,6 +411,16 @@ app.post('/upload', upload.single('file'), async (req, res) => {
                 // Inserta el registro en la tabla correspondiente
                 await sequelize.models[tableName].create(row);
                 console.log(`Registro insertado en la tabla ${tableName}:`, row);
+
+                // Verifica la coincidencia de Total_Fracciones si es la tabla Resumen
+                if (tableName === 'Resumen') {
+                  const folio = row.Folio;
+                  const totalFraccionesDeclarado = row.Total_Fracciones;
+                  const coincide = await verificarTotalFracciones(folio, totalFraccionesDeclarado);
+                  if (!coincide) {
+                    console.warn(`Discrepancia detectada en Total_Fracciones para el folio ${folio}.`);
+                  }
+                }
               }
             } catch (err) {
               console.error(`Error al insertar en la tabla ${tableName}:`, err);
