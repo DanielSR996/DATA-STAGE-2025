@@ -342,6 +342,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     const zip = new AdmZip(req.file.path);
     const zipEntries = zip.getEntries();
     let isDuplicated = false;
+    const duplicatedFiles = []; // Array para almacenar nombres de archivos duplicados
 
     for (const zipEntry of zipEntries) {
       const fileName = zipEntry.entryName;
@@ -383,6 +384,9 @@ app.post('/upload', upload.single('file'), async (req, res) => {
               const existingRecord = await sequelize.models[tableName].findOne({ where: { /* condiciones únicas */ } });
               if (existingRecord) {
                 isDuplicated = true;
+                if (!duplicatedFiles.includes(fileName)) {
+                  duplicatedFiles.push(fileName); // Agrega el nombre del archivo si no está ya en la lista
+                }
                 console.log(`Registro duplicado encontrado en la tabla ${tableName}:`, row);
               } else {
                 // Inserta el registro en la tabla correspondiente
@@ -405,7 +409,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
       });
     }
 
-    res.status(200).json({ duplicated: isDuplicated });
+    res.status(200).json({ duplicated: isDuplicated, duplicatedFiles });
   } catch (error) {
     console.error('Error al procesar el archivo:', error);
     res.status(500).send('Error al subir y procesar el archivo.');
