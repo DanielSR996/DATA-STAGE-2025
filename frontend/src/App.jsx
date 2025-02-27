@@ -4,7 +4,6 @@ import UploadComponent from '../UploadComponent'
 import './App.css'
 
 function App() {
-  return (
     <div className="App" style={{ minHeight: '100vh'}}>
       <Navbar />
       <UploadComponent />

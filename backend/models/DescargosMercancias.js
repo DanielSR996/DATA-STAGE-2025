@@ -47,11 +47,11 @@ DescargosMercancias.init({
     type: DataTypes.INTEGER,
     allowNull: true,
   },
-  Mercancia_Descargada: {
+  Cantidad_Mercancia_Descargada: {
     type: DataTypes.DECIMAL(14, 3),
     allowNull: true,
   },
-  Tipo_Pedimento: {
+  Clave_Tipo_Pedimento: {
     type: DataTypes.INTEGER,
     allowNull: true,
   },
