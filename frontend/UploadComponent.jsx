@@ -11,10 +11,12 @@ const UploadComponent = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+  const [duplicatedFiles, setDuplicatedFiles] = useState([]);
 
   const onDrop = (acceptedFiles) => {
     setIsUploading(true);
     setMessage('');
+    setDuplicatedFiles([]);
     const formData = new FormData();
     formData.append('file', acceptedFiles[0]);
 
@@ -29,8 +31,9 @@ const UploadComponent = () => {
     })
     .then((response) => {
       if (response.data.duplicated) {
-        setMessage('El archivo ya ha sido subido anteriormente.');
+        setMessage('Algunos archivos ya han sido subidos anteriormente.');
         setMessageType('warning');
+        setDuplicatedFiles(response.data.duplicatedFiles);
       } else {
         setMessage('Archivo subido con éxito');
         setMessageType('success');
@@ -56,6 +59,7 @@ const UploadComponent = () => {
   const handleUpload = async () => {
     setIsUploading(true);
     setMessage('');
+    setDuplicatedFiles([]);
     const formData = new FormData();
     const status = {};
 
@@ -124,6 +128,16 @@ const UploadComponent = () => {
       )}
       {error && <p style={{ color: 'red' }}>{error}</p>}
       {message && <p style={getMessageStyle()}>{message}</p>}
+      {duplicatedFiles.length > 0 && (
+        <div>
+          <p>Archivos duplicados:</p>
+          <ul>
+            {duplicatedFiles.map((file, index) => (
+              <li key={index}>{file}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <input type="file" multiple onChange={handleFileChange} />
       <button onClick={handleUpload}>Subir Archivos</button>
       <div>
