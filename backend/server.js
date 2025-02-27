@@ -351,6 +351,24 @@ async function verificarTotalFracciones(folio, totalFraccionesDeclarado) {
   }
 }
 
+// Función para verificar si las fechas ya existen en la base de datos
+async function verificarFechasUnicas(tableName, row, dateColumns) {
+  try {
+    const whereClause = {};
+    dateColumns.forEach((col) => {
+      if (row[col]) {
+        whereClause[col] = row[col];
+      }
+    });
+
+    const existingRecord = await sequelize.models[tableName].findOne({ where: whereClause });
+    return existingRecord ? false : true;
+  } catch (error) {
+    console.error('Error al verificar fechas únicas:', error);
+    return false;
+  }
+}
+
 // Endpoint para manejar la subida de archivos
 app.post('/upload', upload.single('file'), async (req, res) => {
   try {
@@ -362,6 +380,8 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     const zipEntries = zip.getEntries();
     let isDuplicated = false;
     const duplicatedFiles = []; // Array para almacenar nombres de archivos duplicados
+    let discrepancyDetected = false;
+    const rowsToInsert = []; // Array para almacenar filas a insertar
 
     for (const zipEntry of zipEntries) {
       const fileName = zipEntry.entryName;
@@ -398,32 +418,28 @@ app.post('/upload', upload.single('file'), async (req, res) => {
               }
             });
 
-            try {
-              // Verifica si el registro ya existe
-              const existingRecord = await sequelize.models[tableName].findOne({ where: { /* condiciones únicas */ } });
-              if (existingRecord) {
-                isDuplicated = true;
-                if (!duplicatedFiles.includes(fileName)) {
-                  duplicatedFiles.push(fileName); // Agrega el nombre del archivo si no está ya en la lista
-                }
-                console.log(`Registro duplicado encontrado en la tabla ${tableName}:`, row);
-              } else {
-                // Inserta el registro en la tabla correspondiente
-                await sequelize.models[tableName].create(row);
-                console.log(`Registro insertado en la tabla ${tableName}:`, row);
+            // Verifica si las fechas ya existen
+            const fechasUnicas = await verificarFechasUnicas(tableName, row, dateColumns);
+            if (!fechasUnicas) {
+              isDuplicated = true;
+              if (!duplicatedFiles.includes(fileName)) {
+                duplicatedFiles.push(fileName); // Agrega el nombre del archivo si no está ya en la lista
+              }
+              console.log(`Registro duplicado encontrado en la tabla ${tableName}:`, row);
+            } else {
+              // Almacena la fila para inserción posterior
+              rowsToInsert.push({ tableName, row });
 
-                // Verifica la coincidencia de Total_Fracciones si es la tabla Resumen
-                if (tableName === 'Resumen') {
-                  const folio = row.Folio;
-                  const totalFraccionesDeclarado = row.Total_Fracciones;
-                  const coincide = await verificarTotalFracciones(folio, totalFraccionesDeclarado);
-                  if (!coincide) {
-                    console.warn(`Discrepancia detectada en Total_Fracciones para el folio ${folio}.`);
-                  }
+              // Verifica la coincidencia de Total_Fracciones si es la tabla Resumen
+              if (tableName === 'Resumen') {
+                const folio = row.Folio;
+                const totalFraccionesDeclarado = row.Total_Fracciones;
+                const coincide = await verificarTotalFracciones(folio, totalFraccionesDeclarado);
+                if (!coincide) {
+                  discrepancyDetected = true;
+                  console.warn(`Discrepancia detectada en Total_Fracciones para el folio ${folio}.`);
                 }
               }
-            } catch (err) {
-              console.error(`Error al insertar en la tabla ${tableName}:`, err);
             }
           })
           .on('end', () => {
@@ -438,7 +454,21 @@ app.post('/upload', upload.single('file'), async (req, res) => {
       });
     }
 
-    res.status(200).json({ duplicated: isDuplicated, duplicatedFiles });
+    // Si no hay discrepancias, inserta los datos
+    if (!discrepancyDetected) {
+      for (const { tableName, row } of rowsToInsert) {
+        try {
+          await sequelize.models[tableName].create(row);
+          console.log(`Registro insertado en la tabla ${tableName}:`, row);
+        } catch (err) {
+          console.error(`Error al insertar en la tabla ${tableName}:`, err);
+        }
+      }
+    } else {
+      console.warn('No se insertaron datos debido a discrepancias detectadas.');
+    }
+
+    res.status(200).json({ duplicated: isDuplicated, duplicatedFiles, discrepancy: discrepancyDetected });
   } catch (error) {
     console.error('Error al procesar el archivo:', error);
     res.status(500).send('Error al subir y procesar el archivo.');
@@ -453,6 +483,23 @@ app.use((err, req, res, next) => {
     return res.status(500).send(err.message);
   }
   next();
+});
+
+app.get('/api/vista-general', async (req, res) => {
+    try {
+        const datosGenerales = await sequelize.models.DatosGenerales.findAll();
+        const transporteMercancias = await sequelize.models.TransporteMercancias.findAll();
+        // Agrega más consultas para otras tablas según sea necesario
+
+        res.json({
+            datosGenerales,
+            transporteMercancias,
+            // Incluye más tablas aquí
+        });
+    } catch (error) {
+        console.error('Error al obtener los datos:', error);
+        res.status(500).send('Error del servidor');
+    }
 });
 
 app.listen(PORT, () => {
