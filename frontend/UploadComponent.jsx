@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
-import 'react-circular-progressbar/dist/styles.css';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import LinearProgress from '@mui/material/LinearProgress';
+import Container from '@mui/material/Container';
+import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
 
 const UploadComponent = () => {
   const [progress, setProgress] = useState(0);
@@ -12,11 +18,15 @@ const UploadComponent = () => {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
   const [duplicatedFiles, setDuplicatedFiles] = useState([]);
+  const [discrepancyAlert, setDiscrepancyAlert] = useState('');
+  const [matchAlert, setMatchAlert] = useState('');
 
   const onDrop = (acceptedFiles) => {
     setIsUploading(true);
     setMessage('');
     setDuplicatedFiles([]);
+    setDiscrepancyAlert('');
+    setMatchAlert('');
     const formData = new FormData();
     formData.append('file', acceptedFiles[0]);
 
@@ -38,12 +48,19 @@ const UploadComponent = () => {
         setMessage('Archivo subido con éxito');
         setMessageType('success');
       }
-      setProgress(100);
+
+      if (response.data.discrepancy) {
+        setDiscrepancyAlert('Discrepancia detectada en Total_Fracciones.');
+      } else {
+        setMatchAlert('Total_Fracciones coincide correctamente.');
+      }
+
+      setProgress(0);
     })
-    .catch((err) => {
-      setError('Error al subir el archivo');
+    .catch(() => {
+      setMessage('Error al subir el archivo');
       setMessageType('error');
-      console.error(err);
+      setProgress(0);
     })
     .finally(() => {
       setIsUploading(false);
@@ -60,6 +77,8 @@ const UploadComponent = () => {
     setIsUploading(true);
     setMessage('');
     setDuplicatedFiles([]);
+    setDiscrepancyAlert('');
+    setMatchAlert('');
     const formData = new FormData();
     const status = {};
 
@@ -96,58 +115,67 @@ const UploadComponent = () => {
     setUploadStatus(status);
   };
 
-  const getMessageStyle = () => {
+  const getMessageClass = () => {
     switch (messageType) {
       case 'success':
-        return { color: 'green', fontWeight: 'bold' };
+        return 'green lighten-4 green-text text-darken-4';
       case 'error':
-        return { color: 'red', fontWeight: 'bold' };
+        return 'red lighten-4 red-text text-darken-4';
       case 'warning':
-        return { color: 'orange', fontWeight: 'bold' };
+        return 'orange lighten-4 orange-text text-darken-4';
       default:
-        return {};
+        return '';
     }
   };
 
   return (
-    <div {...getRootProps()} style={{ border: '2px dashed #ccc', padding: '20px', textAlign: 'center' }}>
-      <input {...getInputProps()} />
-      <p>Arrastra un archivo ZIP aquí, o haz clic para seleccionar uno</p>
+    <Container maxWidth="md" style={{ marginTop: '100px' }}>
+      <Box {...getRootProps()} sx={{ border: '2px dashed #007BFF', padding: '20px', borderRadius: '10px', textAlign: 'center' }}>
+        <input {...getInputProps()} />
+        <Typography variant="h6" color="primary">Arrastra un archivo ZIP aquí, o haz clic para seleccionar uno</Typography>
+      </Box>
       {isUploading && (
-        <div style={{ width: '100%', backgroundColor: '#f3f3f3', borderRadius: '5px', margin: '10px 0' }}>
-          <div
-            style={{
-              width: `${progress}%`,
-              height: '10px',
-              backgroundColor: progress === 100 ? 'green' : '#4caf50',
-              borderRadius: '5px',
-              transition: 'width 0.2s ease-in-out',
-            }}
-          />
-        </div>
+        <Box sx={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+          <CircularProgress />
+        </Box>
       )}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {message && <p style={getMessageStyle()}>{message}</p>}
+      {progress > 0 && (
+        <Box sx={{ display: 'flex', alignItems: 'center', marginTop: '20px' }}>
+          <Box sx={{ width: '100%', mr: 1 }}>
+            <LinearProgress variant="determinate" value={progress} />
+          </Box>
+          <Box sx={{ minWidth: 35 }}>
+            <Typography variant="body2" color="textSecondary">{`${progress}%`}</Typography>
+          </Box>
+        </Box>
+      )}
+      {message && (
+        <Alert severity={messageType} sx={{ marginTop: '20px' }}>
+          {message}
+        </Alert>
+      )}
       {duplicatedFiles.length > 0 && (
-        <div>
-          <p>Archivos duplicados:</p>
+        <Alert severity="warning" sx={{ marginTop: '20px' }}>
+          <Typography variant="body1">Archivos duplicados:</Typography>
           <ul>
             {duplicatedFiles.map((file, index) => (
               <li key={index}>{file}</li>
             ))}
           </ul>
-        </div>
+        </Alert>
       )}
-      <input type="file" multiple onChange={handleFileChange} />
-      <button onClick={handleUpload}>Subir Archivos</button>
-      <div>
-        {Object.entries(uploadStatus).map(([fileName, status]) => (
-          <div key={fileName}>
-            {fileName}: {status}
-          </div>
-        ))}
-      </div>
-    </div>
+      {discrepancyAlert && (
+        <Alert severity="warning" sx={{ marginTop: '20px' }}>
+          {discrepancyAlert}
+        </Alert>
+      )}
+      {matchAlert && (
+        <Alert severity="success" sx={{ marginTop: '20px' }}>
+          {matchAlert}
+        </Alert>
+      )}
+      <Button variant="contained" color="primary" sx={{ marginTop: '20px' }} onClick={handleUpload}>Subir Archivos</Button>
+    </Container>
   );
 };
 
