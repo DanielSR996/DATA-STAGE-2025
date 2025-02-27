@@ -31,6 +31,7 @@ const Rectificaciones = require('./models/Rectificaciones');
 const DiferenciasContribucionesPedimento = require('./models/DiferenciasContribucionesPedimento');
 const IncidenciasReconocimientoAduanero = require('./models/IncidenciasReconocimientoAduanero');
 const SeleccionAutomatizada = require('./models/SeleccionAutomatizada');
+const Resumen = require('./models/Resumen');
 // Importa otros modelos según sea necesario
 
 const app = express();
@@ -280,6 +281,14 @@ const fileToTable = {
     ],
     dateColumns: ['Fecha_Seleccion_Automatizada']
   },
+  '_Resumen.asc': {
+    tableName: 'Resumen',
+    columns: [
+      'Folio', 'RFCoPatenteAduanal', 'Fecha_Inicial', 'Fecha_Final',
+      'Fecha_Ejecucion', 'Total_Fracciones', 'Total_Contribuciones'
+    ],
+    dateColumns: ['Fecha_Inicial', 'Fecha_Final', 'Fecha_Ejecucion']
+  },
 };
 
 // Asegúrate de que los modelos están inicializados con Sequelize
@@ -313,6 +322,7 @@ const fileToTable = {
     DiferenciasContribucionesPedimento.init(sequelize);
     IncidenciasReconocimientoAduanero.init(sequelize);
     SeleccionAutomatizada.init(sequelize);
+    Resumen.init(sequelize);
 
     // Sincroniza los modelos con la base de datos
     await sequelize.sync();
@@ -331,14 +341,15 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 
     const zip = new AdmZip(req.file.path);
     const zipEntries = zip.getEntries();
+    let isDuplicated = false;
 
-    zipEntries.forEach((zipEntry) => {
+    for (const zipEntry of zipEntries) {
       const fileName = zipEntry.entryName;
       const fileConfig = Object.entries(fileToTable).find(([key]) => fileName.endsWith(key));
 
       if (!fileConfig) {
         console.error(`No se encontró configuración para el archivo: ${fileName}`);
-        return;
+        continue;
       }
 
       const { tableName, columns, dateColumns } = fileConfig[1];
@@ -347,50 +358,54 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 
       let esPrimeraLinea = true;
 
-      fs.createReadStream(filePath)
-        .pipe(csvParser({ separator: '|', headers: columns }))
-        .on('data', async (row) => {
-          if (esPrimeraLinea) {
-            esPrimeraLinea = false; // Ignorar la primera línea
-            return;
-          }
-          dateColumns.forEach((col) => {
-            if (row[col]) {
-              const date = new Date(row[col]);
-              if (!isNaN(date.getTime())) {
-                row[col] = date;
-              } else {
-                console.error(`Fecha inválida para la columna ${col}:`, row[col]);
-                row[col] = null; // O maneja el error de otra manera
-              }
+      await new Promise((resolve, reject) => {
+        fs.createReadStream(filePath)
+          .pipe(csvParser({ separator: '|', headers: columns }))
+          .on('data', async (row) => {
+            if (esPrimeraLinea) {
+              esPrimeraLinea = false; // Ignorar la primera línea
+              return;
             }
-          });
+            dateColumns.forEach((col) => {
+              if (row[col]) {
+                const date = new Date(row[col]);
+                if (!isNaN(date.getTime())) {
+                  row[col] = date;
+                } else {
+                  console.error(`Fecha inválida para la columna ${col}:`, row[col]);
+                  row[col] = null; // O maneja el error de otra manera
+                }
+              }
+            });
 
-          console.log(`Intentando insertar en la tabla ${tableName}:`, row); // Log de los datos a insertar
-
-          try {
-            // Inserta el registro en la tabla correspondiente
-            await sequelize.models[tableName].create(row);
-            console.log(`Registro insertado en la tabla ${tableName}:`, row);
-          } catch (err) {
-            console.error(`Error al insertar en la tabla ${tableName}:`, err);
-            if (err.name === 'SequelizeUniqueConstraintError') {
-              console.log(`Registro duplicado ignorado en la tabla ${tableName}:`, row);
-            } else {
+            try {
+              // Verifica si el registro ya existe
+              const existingRecord = await sequelize.models[tableName].findOne({ where: { /* condiciones únicas */ } });
+              if (existingRecord) {
+                isDuplicated = true;
+                console.log(`Registro duplicado encontrado en la tabla ${tableName}:`, row);
+              } else {
+                // Inserta el registro en la tabla correspondiente
+                await sequelize.models[tableName].create(row);
+                console.log(`Registro insertado en la tabla ${tableName}:`, row);
+              }
+            } catch (err) {
               console.error(`Error al insertar en la tabla ${tableName}:`, err);
             }
-          }
-        })
-        .on('end', () => {
-          console.log(`Archivo ${zipEntry.entryName} procesado completamente.`);
-          fs.unlinkSync(filePath);
-        })
-        .on('error', (err) => {
-          console.error(`Error al procesar el archivo ${zipEntry.entryName}:`, err);
-        });
-    });
+          })
+          .on('end', () => {
+            console.log(`Archivo ${zipEntry.entryName} procesado completamente.`);
+            fs.unlinkSync(filePath);
+            resolve();
+          })
+          .on('error', (err) => {
+            console.error(`Error al procesar el archivo ${zipEntry.entryName}:`, err);
+            reject(err);
+          });
+      });
+    }
 
-    res.status(200).send('Archivo subido y procesado con éxito.');
+    res.status(200).json({ duplicated: isDuplicated });
   } catch (error) {
     console.error('Error al procesar el archivo:', error);
     res.status(500).send('Error al subir y procesar el archivo.');

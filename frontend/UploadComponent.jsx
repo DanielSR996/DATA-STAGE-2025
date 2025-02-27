@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
-import { CircularProgressbar } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 
 const UploadComponent = () => {
@@ -9,8 +8,13 @@ const UploadComponent = () => {
   const [error, setError] = useState(null);
   const [files, setFiles] = useState([]);
   const [uploadStatus, setUploadStatus] = useState({});
+  const [isUploading, setIsUploading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('');
 
   const onDrop = (acceptedFiles) => {
+    setIsUploading(true);
+    setMessage('');
     const formData = new FormData();
     formData.append('file', acceptedFiles[0]);
 
@@ -23,13 +27,23 @@ const UploadComponent = () => {
         setProgress(percentCompleted);
       },
     })
-    .then(() => {
-      alert('Archivo subido con éxito');
-      setProgress(0);
+    .then((response) => {
+      if (response.data.duplicated) {
+        setMessage('El archivo ya ha sido subido anteriormente.');
+        setMessageType('warning');
+      } else {
+        setMessage('Archivo subido con éxito');
+        setMessageType('success');
+      }
+      setProgress(100);
     })
     .catch((err) => {
       setError('Error al subir el archivo');
+      setMessageType('error');
       console.error(err);
+    })
+    .finally(() => {
+      setIsUploading(false);
     });
   };
 
@@ -40,6 +54,8 @@ const UploadComponent = () => {
   };
 
   const handleUpload = async () => {
+    setIsUploading(true);
+    setMessage('');
     const formData = new FormData();
     const status = {};
 
@@ -58,22 +74,56 @@ const UploadComponent = () => {
         result.forEach(file => {
           status[file.name] = file.uploaded ? 'Subido' : 'No subido';
         });
+        setMessage('Archivos subidos con éxito');
+        setMessageType('success');
       } else {
+        setMessage('Error en la carga');
+        setMessageType('error');
         console.error('Error en la carga');
       }
     } catch (error) {
+      setMessage('Error en la carga');
+      setMessageType('error');
       console.error('Error en la carga', error);
+    } finally {
+      setIsUploading(false);
     }
 
     setUploadStatus(status);
+  };
+
+  const getMessageStyle = () => {
+    switch (messageType) {
+      case 'success':
+        return { color: 'green', fontWeight: 'bold' };
+      case 'error':
+        return { color: 'red', fontWeight: 'bold' };
+      case 'warning':
+        return { color: 'orange', fontWeight: 'bold' };
+      default:
+        return {};
+    }
   };
 
   return (
     <div {...getRootProps()} style={{ border: '2px dashed #ccc', padding: '20px', textAlign: 'center' }}>
       <input {...getInputProps()} />
       <p>Arrastra un archivo ZIP aquí, o haz clic para seleccionar uno</p>
-      {progress > 0 && <CircularProgressbar value={progress} text={`${progress}%`} />}
+      {isUploading && (
+        <div style={{ width: '100%', backgroundColor: '#f3f3f3', borderRadius: '5px', margin: '10px 0' }}>
+          <div
+            style={{
+              width: `${progress}%`,
+              height: '10px',
+              backgroundColor: progress === 100 ? 'green' : '#4caf50',
+              borderRadius: '5px',
+              transition: 'width 0.2s ease-in-out',
+            }}
+          />
+        </div>
+      )}
       {error && <p style={{ color: 'red' }}>{error}</p>}
+      {message && <p style={getMessageStyle()}>{message}</p>}
       <input type="file" multiple onChange={handleFileChange} />
       <button onClick={handleUpload}>Subir Archivos</button>
       <div>
