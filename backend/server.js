@@ -28,6 +28,9 @@ const TasasContribucionesPartida = require('./models/TasasContribucionesPartida'
 const ContribucionesPartida = require('./models/ContribucionesPartida');
 const ObservacionesPartida = require('./models/ObservacionesPartida');
 const Rectificaciones = require('./models/Rectificaciones');
+const DiferenciasContribucionesPedimento = require('./models/DiferenciasContribucionesPedimento');
+const IncidenciasReconocimientoAduanero = require('./models/IncidenciasReconocimientoAduanero');
+const SeleccionAutomatizada = require('./models/SeleccionAutomatizada');
 // Importa otros modelos según sea necesario
 
 const app = express();
@@ -247,7 +250,36 @@ const fileToTable = {
     ],
     dateColumns: ['Fecha_Pago', 'Fecha_Operacion_Anterior', 'Fecha_Pago_Real']
   },
-  // Añade más configuraciones para otras terminaciones de archivos .asc
+  '_702.asc': {
+    tableName: 'DiferenciasContribucionesPedimento',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Clave_Contribucion', 'Clave_Forma_Pago', 'Importe_Pago',
+      'Clave_Tipo_Pedimento', 'Fecha_Pago_Real'
+    ],
+    dateColumns: ['Fecha_Pago_Real']
+  },
+  '_Inci.asc': {
+    tableName: 'IncidenciasReconocimientoAduanero',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Consecutivo_Remesa', 'Numero_Seleccion_Automatizada', 'Fecha_Inicio_Reconocimiento',
+      'Hora_Inicio_Reconocimiento', 'Fecha_Fin_Reconocimiento', 'Hora_Fin_Reconocimiento',
+      'Fraccion_Arancelaria', 'Secuencia_Fraccion_Arancelaria', 'Clave_Documento',
+      'Clave_Tipo_Operacion', 'Grado_Incidencia', 'Fecha_Seleccion_Automatizada'
+    ],
+    dateColumns: ['Fecha_Inicio_Reconocimiento', 'Fecha_Fin_Reconocimiento', 'Fecha_Seleccion_Automatizada']
+  },
+  '_Sel.asc': {
+    tableName: 'SeleccionAutomatizada',
+    columns: [
+      'Patente_Aduanal', 'Numero_Pedimento', 'Clave_Sec_Aduanera_Despacho',
+      'Consecutivo_Remesa', 'Numero_Seleccion_Automatizada', 'Fecha_Seleccion_Automatizada',
+      'Hora_Seleccion_Automatizada', 'Semaforo_Fiscal', 'Clave_Documento',
+      'Clave_Tipo_Operacion'
+    ],
+    dateColumns: ['Fecha_Seleccion_Automatizada']
+  },
 };
 
 // Asegúrate de que los modelos están inicializados con Sequelize
@@ -278,6 +310,9 @@ const fileToTable = {
     ContribucionesPartida.init(sequelize);
     ObservacionesPartida.init(sequelize);
     Rectificaciones.init(sequelize);
+    DiferenciasContribucionesPedimento.init(sequelize);
+    IncidenciasReconocimientoAduanero.init(sequelize);
+    SeleccionAutomatizada.init(sequelize);
 
     // Sincroniza los modelos con la base de datos
     await sequelize.sync();
