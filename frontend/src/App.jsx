@@ -1,11 +1,11 @@
 import React from 'react'
-import Navbar from './Navbar'
 import UploadComponent from '../UploadComponent'
 import './App.css'
 
 function App() {
-    <div className="App" style={{ minHeight: '100vh'}}>
-      <Navbar />
+  return (
+    <div className="App">
+      <h1>Subir Archivo ZIP</h1>
       <UploadComponent />
     </div>
   )
