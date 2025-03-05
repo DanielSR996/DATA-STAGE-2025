@@ -17,6 +17,11 @@ function VistaGeneral() {
     const [transporteMercancias, setTransporteMercancias] = useState([]);
     const [guias, setGuias] = useState([]);
     const [contenedores, setContenedores] = useState([]);
+    const [facturas, setFacturas] = useState([]);
+    const [fechasPedimento, setFechasPedimento] = useState([]);
+    const [casosPedimento, setCasosPedimento] = useState([]);
+    const [cuentasAduanerasGarantiaPedimento, setCuentasAduanerasGarantiaPedimento] = useState([]);
+    const [tasasPedimento, setTasasPedimento] = useState([]);
     const [activeTab, setActiveTab] = useState('datosGenerales');
     const [busqueda, setBusqueda] = useState('');
     const [hiddenColumns, setHiddenColumns] = useState(new Set());
@@ -32,6 +37,11 @@ function VistaGeneral() {
                 setTransporteMercancias(data.transporteMercancias || []);
                 setGuias(data.guias || []);
                 setContenedores(data.contenedores || []);
+                setFacturas(data.facturas || []);
+                setFechasPedimento(data.fechasPedimento || []);
+                setCasosPedimento(data.casosPedimento || []);
+                setCuentasAduanerasGarantiaPedimento(data.cuentasAduanerasGarantiaPedimento || []);
+                setTasasPedimento(data.tasasPedimento || []);
             })
             .catch(error => console.error('Error al cargar los datos:', error));
     }, []);
@@ -135,6 +145,304 @@ function VistaGeneral() {
             }
         ];
 
+        const facturasColumns = [
+            { 
+                Header: 'Patente Aduanal',
+                accessor: 'Patente_Aduanal',
+                width: 120
+            },
+            { 
+                Header: 'Número Pedimento',
+                accessor: 'Numero_Pedimento',
+                width: 150
+            },
+            { 
+                Header: 'Clave Sec Aduanera Despacho',
+                accessor: 'Clave_Sec_Aduanera_Despacho',
+                width: 200
+            },
+            { 
+                Header: 'Fecha Facturación',
+                accessor: 'Fecha_Facturacion',
+                Cell: ({ value }) => value ? new Date(value).toLocaleString() : '-',
+                width: 150
+            },
+            { 
+                Header: 'Número Factura',
+                accessor: 'Numero_Factura',
+                width: 150
+            },
+            { 
+                Header: 'Clave Término Facturación',
+                accessor: 'Clave_Termino_Facturacion',
+                width: 150
+            },
+            { 
+                Header: 'Clave Moneda Facturación',
+                accessor: 'Clave_Moneda_Facturacion',
+                width: 150
+            },
+            { 
+                Header: 'Valor Dólares',
+                accessor: 'Valor_Dolares',
+                width: 120
+            },
+            { 
+                Header: 'Valor Moneda Extranjera',
+                accessor: 'Valor_Moneda_Extranjera',
+                width: 150
+            },
+            { 
+                Header: 'País Facturación',
+                accessor: 'Clave_Pais_Facturacion',
+                width: 120
+            },
+            { 
+                Header: 'Entidad Federativa Facturación',
+                accessor: 'Clave_Entidad_Federativa_Facturacion',
+                width: 200
+            },
+            { 
+                Header: 'ID Fiscal Proveedor',
+                accessor: 'Identificacion_Fiscal_Proveedor',
+                width: 150
+            },
+            { 
+                Header: 'Proveedor Mercancía',
+                accessor: 'Proveedor_Mercancia',
+                width: 200
+            },
+            { 
+                Header: 'Calle Proveedor',
+                accessor: 'Calle_Domicilio_Proveedor',
+                width: 200
+            },
+            { 
+                Header: 'Número Interior Proveedor',
+                accessor: 'Numero_Interior_Domicilio_Proveedor',
+                width: 150
+            },
+            { 
+                Header: 'Número Exterior Proveedor',
+                accessor: 'Numero_Exterior_Domicilio_Proveedor',
+                width: 150
+            },
+            { 
+                Header: 'CP Proveedor',
+                accessor: 'Codigo_Postal_Domicilio_Proveedor',
+                width: 120
+            },
+            { 
+                Header: 'Municipio/Ciudad Proveedor',
+                accessor: 'Municipio_Ciudad_Domicilio_Proveedor',
+                width: 200
+            },
+            { 
+                Header: 'Fecha Pago Real',
+                accessor: 'Fecha_Pago_Real',
+                Cell: ({ value }) => value ? new Date(value).toLocaleString() : '-',
+                width: 150
+            }
+        ];
+
+        const fechasPedimentoColumns = [
+            { 
+                Header: 'Patente Aduanal',
+                accessor: 'Patente_Aduanal',
+                width: 120
+            },
+            { 
+                Header: 'Número Pedimento',
+                accessor: 'Numero_Pedimento',
+                width: 150
+            },
+            { 
+                Header: 'Clave Sec Aduanera Despacho',
+                accessor: 'Clave_Sec_Aduanera_Despacho',
+                width: 200
+            },
+            { 
+                Header: 'Clave Tipo Fecha',
+                accessor: 'Clave_Tipo_Fecha',
+                width: 150
+            },
+            { 
+                Header: 'Fecha Operación',
+                accessor: 'Fecha_Operacion',
+                Cell: ({ value }) => value ? new Date(value).toLocaleString() : '-',
+                width: 180
+            },
+            { 
+                Header: 'Fecha Validación/Pago Real',
+                accessor: 'Fecha_Validacion_Pago_Real',
+                Cell: ({ value }) => value ? new Date(value).toLocaleString() : '-',
+                width: 180
+            }
+        ];
+
+        const casosPedimentoColumns = [
+            { 
+                Header: 'Patente Aduanal',
+                accessor: 'Patente_Aduanal',
+                width: 120
+            },
+            { 
+                Header: 'Número Pedimento',
+                accessor: 'Numero_Pedimento',
+                width: 150
+            },
+            { 
+                Header: 'Clave Sec Aduanera Despacho',
+                accessor: 'Clave_Sec_Aduanera_Despacho',
+                width: 200
+            },
+            { 
+                Header: 'Clave Caso',
+                accessor: 'Clave_Caso',
+                width: 120
+            },
+            { 
+                Header: 'Identificador Caso',
+                accessor: 'Identificador_Caso',
+                width: 150
+            },
+            { 
+                Header: 'Clave Tipo Pedimento',
+                accessor: 'Clave_Tipo_Pedimento',
+                width: 150
+            },
+            { 
+                Header: 'Complemento Caso',
+                accessor: 'Complemento_Caso',
+                width: 150
+            },
+            { 
+                Header: 'Fecha Validación/Pago Real',
+                accessor: 'Fecha_Validacion_Pago_Real',
+                Cell: ({ value }) => value ? new Date(value).toLocaleString() : '-',
+                width: 180
+            }
+        ];
+
+        const cuentasAduanerasGarantiaPedimentoColumns = [
+            { 
+                Header: 'Patente Aduanal',
+                accessor: 'Patente_Aduanal',
+                width: 120
+            },
+            { 
+                Header: 'Número Pedimento',
+                accessor: 'Numero_Pedimento',
+                width: 150
+            },
+            { 
+                Header: 'Clave Sec Aduanera Despacho',
+                accessor: 'Clave_Sec_Aduanera_Despacho',
+                width: 200
+            },
+            { 
+                Header: 'Clave Institución Emisor',
+                accessor: 'Clave_Institucion_Emisor',
+                width: 150
+            },
+            { 
+                Header: 'Número Cuenta',
+                accessor: 'Numero_Cuenta',
+                width: 150
+            },
+            { 
+                Header: 'Folio Constancia',
+                accessor: 'Folio_Constancia',
+                width: 150
+            },
+            { 
+                Header: 'Fecha Constancia',
+                accessor: 'Fecha_Constancia',
+                Cell: ({ value }) => value ? new Date(value).toLocaleString() : '-',
+                width: 180
+            },
+            { 
+                Header: 'Clave Tipo Cuenta',
+                accessor: 'Clave_Tipo_Cuenta',
+                width: 150
+            },
+            { 
+                Header: 'Clave Garantía',
+                accessor: 'Clave_Garantia',
+                width: 150
+            },
+            { 
+                Header: 'Valor Unitario Título',
+                accessor: 'Valor_Unitario_Titulo',
+                width: 150
+            },
+            { 
+                Header: 'Total Garantía',
+                accessor: 'Total_Garantia',
+                width: 150
+            },
+            { 
+                Header: 'Cantidad Unidades Medida Precio Estimado',
+                accessor: 'Cantidad_Unidades_Medida_Precio_Estimado',
+                width: 250
+            },
+            { 
+                Header: 'Títulos Asignados',
+                accessor: 'Titulos_Asignados',
+                width: 150
+            },
+            { 
+                Header: 'Fecha Pago Real',
+                accessor: 'Fecha_Pago_Real',
+                Cell: ({ value }) => value ? new Date(value).toLocaleString() : '-',
+                width: 180
+            }
+        ];
+
+        const tasasPedimentoColumns = [
+            { 
+                Header: 'Patente Aduanal',
+                accessor: 'Patente_Aduanal',
+                width: 120
+            },
+            { 
+                Header: 'Número Pedimento',
+                accessor: 'Numero_Pedimento',
+                width: 150
+            },
+            { 
+                Header: 'Clave Sec Aduanera Despacho',
+                accessor: 'Clave_Sec_Aduanera_Despacho',
+                width: 200
+            },
+            { 
+                Header: 'Clave Contribución',
+                accessor: 'Clave_Contribucion',
+                width: 150
+            },
+            { 
+                Header: 'Tasa Contribución',
+                accessor: 'Tasa_Contribucion',
+                width: 150
+            },
+            { 
+                Header: 'Clave Tipo Tasa',
+                accessor: 'Clave_Tipo_Tasa',
+                width: 150
+            },
+            { 
+                Header: 'Clave Tipo Pedimento',
+                accessor: 'Clave_Tipo_Pedimento',
+                width: 150
+            },
+            { 
+                Header: 'Fecha Pago Real',
+                accessor: 'Fecha_Pago_Real',
+                Cell: ({ value }) => value ? new Date(value).toLocaleString() : '-',
+                width: 180
+            }
+        ];
+
         const datosGeneralesColumns = [
             { 
                 Header: 'Patente Aduanal', 
@@ -196,6 +504,16 @@ function VistaGeneral() {
                 return transporteColumns;
             case 'contenedores':
                 return contenedoresColumns;
+            case 'facturas':
+                return facturasColumns;
+            case 'fechasPedimento':
+                return fechasPedimentoColumns;
+            case 'casosPedimento':
+                return casosPedimentoColumns;
+            case 'cuentasAduanerasGarantiaPedimento':
+                return cuentasAduanerasGarantiaPedimentoColumns;
+            case 'tasasPedimento':
+                return tasasPedimentoColumns;
             case 'datosGenerales':
             default:
                 return datosGeneralesColumns;
@@ -221,12 +539,35 @@ function VistaGeneral() {
                 console.log('Datos de contenedores disponibles:', contenedores);
                 data = contenedores;
                 break;
+            case 'facturas':
+                console.log('Tab de facturas seleccionado');
+                console.log('Datos de facturas disponibles:', facturas);
+                data = facturas;
+                break;
+            case 'fechasPedimento':
+                console.log('Tab de fechas pedimento seleccionado');
+                console.log('Datos de fechas pedimento disponibles:', fechasPedimento);
+                data = fechasPedimento;
+                break;
+            case 'casosPedimento':
+                console.log('Tab de casos pedimento seleccionado');
+                console.log('Datos de casos pedimento disponibles:', casosPedimento);
+                data = casosPedimento;
+                break;
+            case 'cuentasAduanerasGarantiaPedimento':
+                console.log('Tab de cuentas aduaneras garantía pedimento seleccionado');
+                data = cuentasAduanerasGarantiaPedimento;
+                break;
+            case 'tasasPedimento':
+                console.log('Tab de tasas pedimento seleccionado');
+                data = tasasPedimento;
+                break;
             default:
                 data = datosGenerales;
         }
         console.log(`Datos para la tabla (${activeTab}):`, data);
         return Array.isArray(data) ? data : [];
-    }, [activeTab, datosGenerales, transporteMercancias, guias, contenedores]);
+    }, [activeTab, datosGenerales, transporteMercancias, guias, contenedores, facturas, fechasPedimento, casosPedimento, cuentasAduanerasGarantiaPedimento, tasasPedimento]);
 
     const filteredData = useMemo(() => {
         if (!busqueda) return tableData;
@@ -326,6 +667,66 @@ function VistaGeneral() {
                         }}
                     >
                         Contenedores
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('facturas')}
+                        style={{ 
+                            backgroundColor: activeTab === 'facturas' ? '#4CAF50' : '#f1f1f1',
+                            padding: '10px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Facturas
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('fechasPedimento')}
+                        style={{ 
+                            backgroundColor: activeTab === 'fechasPedimento' ? '#4CAF50' : '#f1f1f1',
+                            padding: '10px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Fechas Pedimento
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('casosPedimento')}
+                        style={{ 
+                            backgroundColor: activeTab === 'casosPedimento' ? '#4CAF50' : '#f1f1f1',
+                            padding: '10px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Casos Pedimento
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('cuentasAduanerasGarantiaPedimento')}
+                        style={{ 
+                            backgroundColor: activeTab === 'cuentasAduanerasGarantiaPedimento' ? '#4CAF50' : '#f1f1f1',
+                            padding: '10px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Cuentas Aduaneras Garantía
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('tasasPedimento')}
+                        style={{ 
+                            backgroundColor: activeTab === 'tasasPedimento' ? '#4CAF50' : '#f1f1f1',
+                            padding: '10px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Tasas Pedimento
                     </button>
                 </div>
                 
