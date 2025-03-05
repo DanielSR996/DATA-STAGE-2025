@@ -22,6 +22,7 @@ function VistaGeneral() {
     const [casosPedimento, setCasosPedimento] = useState([]);
     const [cuentasAduanerasGarantiaPedimento, setCuentasAduanerasGarantiaPedimento] = useState([]);
     const [tasasPedimento, setTasasPedimento] = useState([]);
+    const [contribucionesPedimento, setContribucionesPedimento] = useState([]);
     const [activeTab, setActiveTab] = useState('datosGenerales');
     const [busqueda, setBusqueda] = useState('');
     const [hiddenColumns, setHiddenColumns] = useState(new Set());
@@ -42,6 +43,7 @@ function VistaGeneral() {
                 setCasosPedimento(data.casosPedimento || []);
                 setCuentasAduanerasGarantiaPedimento(data.cuentasAduanerasGarantiaPedimento || []);
                 setTasasPedimento(data.tasasPedimento || []);
+                setContribucionesPedimento(data.contribucionesPedimento || []);
             })
             .catch(error => console.error('Error al cargar los datos:', error));
     }, []);
@@ -443,6 +445,50 @@ function VistaGeneral() {
             }
         ];
 
+        const contribucionesPedimentoColumns = [
+            { 
+                Header: 'Patente Aduanal',
+                accessor: 'Patente_Aduanal',
+                width: 120
+            },
+            { 
+                Header: 'Número Pedimento',
+                accessor: 'Numero_Pedimento',
+                width: 150
+            },
+            { 
+                Header: 'Clave Sec Aduanera Despacho',
+                accessor: 'Clave_Sec_Aduanera_Despacho',
+                width: 200
+            },
+            { 
+                Header: 'Clave Contribución',
+                accessor: 'Clave_Contribucion',
+                width: 150
+            },
+            { 
+                Header: 'Clave Forma Pago',
+                accessor: 'Clave_Forma_Pago',
+                width: 120
+            },
+            { 
+                Header: 'Importe Pago',
+                accessor: 'Importe_Pago',
+                width: 150
+            },
+            { 
+                Header: 'Clave Tipo Pedimento',
+                accessor: 'Clave_Tipo_Pedimento',
+                width: 150
+            },
+            { 
+                Header: 'Fecha Pago Real',
+                accessor: 'Fecha_Pago_Real',
+                Cell: ({ value }) => value ? new Date(value).toLocaleString() : '-',
+                width: 180
+            }
+        ];
+
         const datosGeneralesColumns = [
             { 
                 Header: 'Patente Aduanal', 
@@ -514,6 +560,8 @@ function VistaGeneral() {
                 return cuentasAduanerasGarantiaPedimentoColumns;
             case 'tasasPedimento':
                 return tasasPedimentoColumns;
+            case 'contribucionesPedimento':
+                return contribucionesPedimentoColumns;
             case 'datosGenerales':
             default:
                 return datosGeneralesColumns;
@@ -562,12 +610,16 @@ function VistaGeneral() {
                 console.log('Tab de tasas pedimento seleccionado');
                 data = tasasPedimento;
                 break;
+            case 'contribucionesPedimento':
+                console.log('Tab de contribuciones pedimento seleccionado');
+                data = contribucionesPedimento;
+                break;
             default:
                 data = datosGenerales;
         }
         console.log(`Datos para la tabla (${activeTab}):`, data);
         return Array.isArray(data) ? data : [];
-    }, [activeTab, datosGenerales, transporteMercancias, guias, contenedores, facturas, fechasPedimento, casosPedimento, cuentasAduanerasGarantiaPedimento, tasasPedimento]);
+    }, [activeTab, datosGenerales, transporteMercancias, guias, contenedores, facturas, fechasPedimento, casosPedimento, cuentasAduanerasGarantiaPedimento, tasasPedimento, contribucionesPedimento]);
 
     const filteredData = useMemo(() => {
         if (!busqueda) return tableData;
@@ -727,6 +779,18 @@ function VistaGeneral() {
                         }}
                     >
                         Tasas Pedimento
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('contribucionesPedimento')}
+                        style={{ 
+                            backgroundColor: activeTab === 'contribucionesPedimento' ? '#4CAF50' : '#f1f1f1',
+                            padding: '10px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Contribuciones Pedimento
                     </button>
                 </div>
                 
