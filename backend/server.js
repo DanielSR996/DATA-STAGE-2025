@@ -594,6 +594,20 @@ app.get('/api/vista-general', async (req, res) => {
       FROM 509_tasas_pedimento
     `);
 
+    // Agregar la consulta para contribuciones pedimento
+    const [contribucionesPedimento] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Clave_Contribucion,
+        Clave_Forma_Pago,
+        Importe_Pago,
+        Clave_Tipo_Pedimento,
+        Fecha_Pago_Real
+      FROM 510_contribuciones_pedimento
+    `);
+
     res.json({
       datosGenerales,
       transporteMercancias,
@@ -603,7 +617,8 @@ app.get('/api/vista-general', async (req, res) => {
       fechasPedimento,
       casosPedimento,
       cuentasAduanerasGarantiaPedimento,
-      tasasPedimento
+      tasasPedimento,
+      contribucionesPedimento
     });
   } catch (error) {
     console.error('Error detallado:', error);
