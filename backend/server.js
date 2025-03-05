@@ -499,7 +499,6 @@ app.get('/api/vista-general', async (req, res) => {
       'SELECT * FROM 503_guias'
     );
 
-    // Agregar la consulta para contenedores
     const [contenedores] = await sequelize.query(`
       SELECT 
         Patente_Aduanal,
@@ -511,11 +510,100 @@ app.get('/api/vista-general', async (req, res) => {
       FROM 504_contenedores
     `);
 
+    // Agregar la consulta para facturas
+    const [facturas] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fecha_Facturacion,
+        Numero_Factura,
+        Clave_Termino_Facturacion,
+        Clave_Moneda_Facturacion,
+        Valor_Dolares,
+        Valor_Moneda_Extranjera,
+        Clave_Pais_Facturacion,
+        Clave_Entidad_Federativa_Facturacion,
+        Identificacion_Fiscal_Proveedor,
+        Proveedor_Mercancia,
+        Calle_Domicilio_Proveedor,
+        Numero_Interior_Domicilio_Proveedor,
+        Numero_Exterior_Domicilio_Proveedor,
+        Codigo_Postal_Domicilio_Proveedor,
+        Municipio_Ciudad_Domicilio_Proveedor,
+        Fecha_Pago_Real
+      FROM 505_facturas
+    `);
+
+    const [fechasPedimento] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Clave_Tipo_Fecha,
+        Fecha_Operacion,
+        Fecha_Validacion_Pago_Real
+      FROM 506_fechas_pedimento
+    `);
+
+    // Agregar la consulta para casos pedimento
+    const [casosPedimento] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Clave_Caso,
+        Identificador_Caso,
+        Clave_Tipo_Pedimento,
+        Complemento_Caso,
+        Fecha_Validacion_Pago_Real
+      FROM 507_casos_pedimento
+    `);
+
+    // Agregar la consulta para cuentas aduaneras garantía pedimento
+    const [cuentasAduanerasGarantiaPedimento] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Clave_Institucion_Emisor,
+        Numero_Cuenta,
+        Folio_Constancia,
+        Fecha_Constancia,
+        Clave_Tipo_Cuenta,
+        Clave_Garantia,
+        Valor_Unitario_Titulo,
+        Total_Garantia,
+        Cantidad_Unidades_Medida_Precio_Estimado,
+        Titulos_Asignados,
+        Fecha_Pago_Real
+      FROM 508_cuentas_aduaneras_garantia_pedimento
+    `);
+
+    // Agregar la consulta para tasas pedimento
+    const [tasasPedimento] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Clave_Contribucion,
+        Tasa_Contribucion,
+        Clave_Tipo_Tasa,
+        Clave_Tipo_Pedimento,
+        Fecha_Pago_Real
+      FROM 509_tasas_pedimento
+    `);
+
     res.json({
       datosGenerales,
       transporteMercancias,
       guias,
-      contenedores // Agregar contenedores a la respuesta
+      contenedores,
+      facturas,
+      fechasPedimento,
+      casosPedimento,
+      cuentasAduanerasGarantiaPedimento,
+      tasasPedimento
     });
   } catch (error) {
     console.error('Error detallado:', error);
