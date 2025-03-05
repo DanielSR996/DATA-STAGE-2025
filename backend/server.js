@@ -487,11 +487,39 @@ app.use((err, req, res, next) => {
 
 app.get('/api/vista-general', async (req, res) => {
   try {
-    const datosGenerales = await DatosGenerales.findAll();
-    res.json({ datosGenerales });
+    const [datosGenerales] = await sequelize.query(
+      'SELECT * FROM 501_datos_generales'
+    );
+    
+    const [transporteMercancias] = await sequelize.query(
+      'SELECT * FROM 502_transporte_mercancias'
+    );
+
+    const [guias] = await sequelize.query(
+      'SELECT * FROM 503_guias'
+    );
+
+    // Agregar la consulta para contenedores
+    const [contenedores] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Numero_Contenedor,
+        Clave_Tipo_Contenedor,
+        Fecha_Pago_Real
+      FROM 504_contenedores
+    `);
+
+    res.json({
+      datosGenerales,
+      transporteMercancias,
+      guias,
+      contenedores // Agregar contenedores a la respuesta
+    });
   } catch (error) {
-    console.error('Error al obtener los datos:', error);
-    res.status(500).send('Error del servidor');
+    console.error('Error detallado:', error);
+    res.status(500).json({ error: 'Error al obtener datos', details: error.message });
   }
 });
 

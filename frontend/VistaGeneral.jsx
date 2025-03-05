@@ -1,28 +1,166 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTable } from 'react-table';
+import { FaSearch } from 'react-icons/fa';
+import { 
+    Table, 
+    TableBody, 
+    TableCell, 
+    TableContainer, 
+    TableHead, 
+    TableRow, 
+    Paper,
+    Tooltip
+} from '@mui/material';
 
 function VistaGeneral() {
-    const [data, setData] = useState([]);
-    const [busqueda, setBusqueda] = useState('');
+    const [datosGenerales, setDatosGenerales] = useState([]);
+    const [transporteMercancias, setTransporteMercancias] = useState([]);
+    const [guias, setGuias] = useState([]);
+    const [contenedores, setContenedores] = useState([]);
     const [activeTab, setActiveTab] = useState('datosGenerales');
+    const [busqueda, setBusqueda] = useState('');
     const [hiddenColumns, setHiddenColumns] = useState(new Set());
+    const [showFloatingHeader, setShowFloatingHeader] = useState(false);
 
     useEffect(() => {
         fetch('http://localhost:3000/api/vista-general')
             .then(response => response.json())
             .then(data => {
-                setData(data || {});
+                console.log('Respuesta completa:', data);
+                console.log('Guías en la respuesta:', data.guias);
+                setDatosGenerales(data.datosGenerales || []);
+                setTransporteMercancias(data.transporteMercancias || []);
+                setGuias(data.guias || []);
+                setContenedores(data.contenedores || []);
             })
             .catch(error => console.error('Error al cargar los datos:', error));
     }, []);
 
+    useEffect(() => {
+        const handleScroll = (e) => {
+            const scrollTop = e.target.scrollTop;
+            setShowFloatingHeader(scrollTop > 50);
+        };
+
+        const tableContainer = document.querySelector('.table-container');
+        if (tableContainer) {
+            tableContainer.addEventListener('scroll', handleScroll);
+        }
+
+        return () => {
+            if (tableContainer) {
+                tableContainer.removeEventListener('scroll', handleScroll);
+            }
+        };
+    }, []);
+
     const columns = useMemo(() => {
-        const datosGeneralesColumns = [
+        const guiasColumns = [
+            { 
+                Header: 'Patente Aduanal', 
+                accessor: 'Patente_Aduanal',
+                width: 120
+            },
+            { 
+                Header: 'Número Pedimento', 
+                accessor: 'Numero_Pedimento',
+                width: 150
+            },
+            { 
+                Header: 'Clave Sec Aduanera Despacho', 
+                accessor: 'Clave_Sec_Aduanera_Despacho',
+                width: 200
+            },
+            { 
+                Header: 'Número Guía/Manifiesto', 
+                accessor: 'Numero_Guia_Manifiesto',
+                width: 180
+            },
+            { 
+                Header: 'Clave Tipo Guía', 
+                accessor: 'Clave_Tipo_Guia',
+                width: 120
+            },
+            { 
+                Header: 'Fecha Pago Real', 
+                accessor: 'Fecha_Pago_Real',
+                Cell: ({ value }) => value ? new Date(value).toLocaleString() : '-',
+                width: 150
+            }
+        ];
+
+        const transporteColumns = [
             { Header: 'Patente Aduanal', accessor: 'Patente_Aduanal' },
             { Header: 'Número Pedimento', accessor: 'Numero_Pedimento' },
             { Header: 'Clave Sec Aduanera Despacho', accessor: 'Clave_Sec_Aduanera_Despacho' },
-            { Header: 'Clave Tipo Operación', accessor: 'Clave_Tipo_Operacion' },
-            { Header: 'Clave Documento', accessor: 'Clave_Documento' },
+            { Header: 'RFC Transportista', accessor: 'RFC_Transportista' },
+            { Header: 'CURP Transportista', accessor: 'CURP_Transportista' },
+            { Header: 'Nombre Razón Social Transportista', accessor: 'Nombre_Razon_Social_Transportista' },
+            { Header: 'Clave País Transporte', accessor: 'Clave_Pais_Transporte' },
+            { Header: 'Identificador Transporte', accessor: 'Identificador_Transporte' },
+            { Header: 'Fecha Pago Real', accessor: 'Fecha_Pago_Real' }
+        ];
+
+        const contenedoresColumns = [
+            { 
+                Header: 'Patente Aduanal', 
+                accessor: 'Patente_Aduanal',
+                width: 120
+            },
+            { 
+                Header: 'Número Pedimento', 
+                accessor: 'Numero_Pedimento',
+                width: 150
+            },
+            { 
+                Header: 'Clave Sec Aduanera Despacho', 
+                accessor: 'Clave_Sec_Aduanera_Despacho',
+                width: 200
+            },
+            { 
+                Header: 'Número Contenedor', 
+                accessor: 'Numero_Contenedor',
+                width: 150
+            },
+            { 
+                Header: 'Clave Tipo Contenedor', 
+                accessor: 'Clave_Tipo_Contenedor',
+                width: 150
+            },
+            { 
+                Header: 'Fecha Pago Real', 
+                accessor: 'Fecha_Pago_Real',
+                Cell: ({ value }) => value ? new Date(value).toLocaleString() : '-',
+                width: 150
+            }
+        ];
+
+        const datosGeneralesColumns = [
+            { 
+                Header: 'Patente Aduanal', 
+                accessor: 'Patente_Aduanal',
+                width: 100
+            },
+            { 
+                Header: 'Número Pedimento', 
+                accessor: 'Numero_Pedimento',
+                width: 120
+            },
+            { 
+                Header: 'Clave Sec Aduanera Despacho', 
+                accessor: 'Clave_Sec_Aduanera_Despacho',
+                width: 150
+            },
+            { 
+                Header: 'Clave Tipo Operación', 
+                accessor: 'Clave_Tipo_Operacion',
+                width: 80
+            },
+            { 
+                Header: 'Clave Documento', 
+                accessor: 'Clave_Documento',
+                width: 80
+            },
             { Header: 'Clave Sec Aduanera Entrada', accessor: 'Clave_Sec_Aduanera_Entrada' },
             { Header: 'CURP Contribuyente', accessor: 'CURP_Contribuyente' },
             { Header: 'RFC Contribuyente', accessor: 'RFC_Contribuyente' },
@@ -51,42 +189,54 @@ function VistaGeneral() {
             { Header: 'Fecha Pago Real', accessor: 'Fecha_Pago_Real' }
         ];
 
-        const transporteColumns = [
-            { Header: 'Patente Aduanal', accessor: 'Patente_Aduanal' },
-            { Header: 'Número Pedimento', accessor: 'Numero_Pedimento' },
-            { Header: 'Clave Sec Aduanera Despacho', accessor: 'Clave_Sec_Aduanera_Despacho' },
-            { Header: 'RFC Transportista', accessor: 'RFC_Transportista' },
-            { Header: 'CURP Transportista', accessor: 'CURP_Transportista' },
-            { Header: 'Nombre Razón Social Transportista', accessor: 'Nombre_Razon_Social_Transportista' },
-            { Header: 'Clave País Transporte', accessor: 'Clave_Pais_Transporte' },
-            { Header: 'Identificador Transporte', accessor: 'Identificador_Transporte' },
-            { Header: 'Fecha Pago Real', accessor: 'Fecha_Pago_Real' }
-        ];
-
-        // Aquí puedes agregar más conjuntos de columnas para otras pestañas
         switch (activeTab) {
-            case 'datosGenerales':
-                return datosGeneralesColumns;
+            case 'guias':
+                return guiasColumns;
             case 'transporteMercancias':
                 return transporteColumns;
+            case 'contenedores':
+                return contenedoresColumns;
+            case 'datosGenerales':
             default:
                 return datosGeneralesColumns;
         }
     }, [activeTab]);
 
+    const tableData = useMemo(() => {
+        let data;
+        switch (activeTab) {
+            case 'datosGenerales':
+                data = datosGenerales;
+                break;
+            case 'transporteMercancias':
+                data = transporteMercancias;
+                break;
+            case 'guias':
+                console.log('Tab de guías seleccionado');
+                console.log('Datos de guías disponibles:', guias);
+                data = guias;
+                break;
+            case 'contenedores':
+                console.log('Tab de contenedores seleccionado');
+                console.log('Datos de contenedores disponibles:', contenedores);
+                data = contenedores;
+                break;
+            default:
+                data = datosGenerales;
+        }
+        console.log(`Datos para la tabla (${activeTab}):`, data);
+        return Array.isArray(data) ? data : [];
+    }, [activeTab, datosGenerales, transporteMercancias, guias, contenedores]);
+
     const filteredData = useMemo(() => {
-        const currentData = activeTab === 'datosGenerales' ? 
-            data.datosGenerales || [] : 
-            data.transporteMercancias || [];
-
-        if (!busqueda) return currentData;
-
-        return currentData.filter(row =>
+        if (!busqueda) return tableData;
+        
+        return tableData.filter(row =>
             Object.values(row).some(value =>
                 String(value).toLowerCase().includes(busqueda.toLowerCase())
             )
         );
-    }, [data, busqueda, activeTab]);
+    }, [tableData, busqueda]);
 
     const {
         getTableProps,
@@ -96,10 +246,7 @@ function VistaGeneral() {
         prepareRow,
     } = useTable({
         columns,
-        data: filteredData,
-        initialState: {
-            hiddenColumns: Array.from(hiddenColumns)
-        }
+        data: tableData
     });
 
     const toggleColumn = (columnId) => {
@@ -114,97 +261,181 @@ function VistaGeneral() {
         });
     };
 
+    console.log('Número de filas:', rows.length);
+
     return (
-        <div style={{ padding: '20px', marginTop: '80px' }}>
-            <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
-                <button 
-                    onClick={() => setActiveTab('datosGenerales')}
-                    style={{ 
-                        backgroundColor: activeTab === 'datosGenerales' ? '#4CAF50' : '#f1f1f1',
-                        padding: '10px',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                    }}
-                >
-                    Datos Generales
-                </button>
-                <button 
-                    onClick={() => setActiveTab('transporteMercancias')}
-                    style={{ 
-                        backgroundColor: activeTab === 'transporteMercancias' ? '#4CAF50' : '#f1f1f1',
-                        padding: '10px',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                    }}
-                >
-                    Transporte Mercancías
-                </button>
+        <div style={{ 
+            padding: '20px', 
+            marginTop: '80px',
+            height: 'calc(100vh - 100px)',
+            display: 'flex',
+            flexDirection: 'column'
+        }}>
+            <div style={{ 
+                marginBottom: '20px', 
+                display: 'flex',
+                gap: '10px',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+            }}>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button 
+                        onClick={() => setActiveTab('datosGenerales')}
+                        style={{ 
+                            backgroundColor: activeTab === 'datosGenerales' ? '#4CAF50' : '#f1f1f1',
+                            padding: '10px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Datos Generales
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('transporteMercancias')}
+                        style={{ 
+                            backgroundColor: activeTab === 'transporteMercancias' ? '#4CAF50' : '#f1f1f1',
+                            padding: '10px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Transporte Mercancías
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('guias')}
+                        style={{ 
+                            backgroundColor: activeTab === 'guias' ? '#4CAF50' : '#f1f1f1',
+                            padding: '10px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Guías
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('contenedores')}
+                        style={{ 
+                            backgroundColor: activeTab === 'contenedores' ? '#4CAF50' : '#f1f1f1',
+                            padding: '10px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Contenedores
+                    </button>
+                </div>
+                
+                <div style={{
+                    position: 'relative',
+                    width: '300px',
+                }}>
+                    <div style={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                    }}>
+                        <input
+                            type="text"
+                            value={busqueda}
+                            onChange={e => setBusqueda(e.target.value)}
+                            placeholder="Buscar..."
+                            style={{ 
+                                width: '100%',
+                                padding: '12px 40px 12px 16px',
+                                fontSize: '14px',
+                                border: '2px solid #e0e0e0',
+                                borderRadius: '25px',
+                                outline: 'none',
+                                transition: 'all 0.3s ease',
+                                backgroundColor: '#f8f9fa',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                '&:focus': {
+                                    borderColor: '#4CAF50',
+                                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                                }
+                            }}
+                        />
+                        <FaSearch style={{
+                            position: 'absolute',
+                            right: '16px',
+                            color: '#666',
+                            fontSize: '16px'
+                        }} />
+                    </div>
+                </div>
             </div>
 
-            <input
-                type="text"
-                value={busqueda}
-                onChange={e => setBusqueda(e.target.value)}
-                placeholder="Buscar..."
+            <TableContainer 
+                component={Paper} 
                 style={{ 
-                    marginBottom: '20px', 
-                    padding: '8px', 
-                    width: '200px',
+                    flex: 1,
+                    width: '100%',
+                    height: '100%',
                     borderRadius: '4px',
-                    border: '1px solid #ddd'
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}
-            />
-
-            <div style={{ overflowX: 'auto' }}>
-                <table {...getTableProps()} style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
+            >
+                <Table 
+                    {...getTableProps()} 
+                    stickyHeader 
+                    style={{
+                        width: '100%',
+                        height: '100%'
+                    }}
+                >
+                    <TableHead>
                         {headerGroups.map(headerGroup => (
-                            <tr {...headerGroup.getHeaderGroupProps()}>
+                            <TableRow {...headerGroup.getHeaderGroupProps()}>
                                 {headerGroup.headers.map(column => (
-                                    <th
+                                    <TableCell
                                         {...column.getHeaderProps()}
                                         onClick={() => toggleColumn(column.id)}
                                         style={{
-                                            padding: '12px 8px',
-                                            borderBottom: '2px solid black',
-                                            cursor: 'pointer',
                                             backgroundColor: hiddenColumns.has(column.id) ? '#ffcccc' : '#f9f9f9',
-                                            position: 'relative'
+                                            cursor: 'pointer',
+                                            fontWeight: 'bold',
+                                            padding: '16px 8px',
+                                            fontSize: '0.95rem'
                                         }}
                                     >
                                         {column.render('Header')}
-                                    </th>
+                                    </TableCell>
                                 ))}
-                            </tr>
+                            </TableRow>
                         ))}
-                    </thead>
-                    <tbody {...getTableBodyProps()}>
+                    </TableHead>
+                    <TableBody {...getTableBodyProps()}>
                         {rows.map(row => {
                             prepareRow(row);
                             return (
-                                <tr {...row.getRowProps()}>
+                                <TableRow {...row.getRowProps()}>
                                     {row.cells.map(cell => {
                                         if (hiddenColumns.has(cell.column.id)) return null;
                                         return (
-                                            <td
+                                            <TableCell
                                                 {...cell.getCellProps()}
                                                 style={{
-                                                    padding: '8px',
-                                                    borderBottom: '1px solid #ddd'
+                                                    whiteSpace: 'nowrap',
+                                                    maxWidth: '200px',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    padding: '12px 8px'
                                                 }}
                                             >
                                                 {cell.render('Cell')}
-                                            </td>
+                                            </TableCell>
                                         );
                                     })}
-                                </tr>
+                                </TableRow>
                             );
                         })}
-                    </tbody>
-                </table>
-            </div>
+                    </TableBody>
+                </Table>
+            </TableContainer>
         </div>
     );
 }
