@@ -486,20 +486,13 @@ app.use((err, req, res, next) => {
 });
 
 app.get('/api/vista-general', async (req, res) => {
-    try {
-        const datosGenerales = await sequelize.models.DatosGenerales.findAll();
-        const transporteMercancias = await sequelize.models.TransporteMercancias.findAll();
-        // Agrega más consultas para otras tablas según sea necesario
-
-        res.json({
-            datosGenerales,
-            transporteMercancias,
-            // Incluye más tablas aquí
-        });
-    } catch (error) {
-        console.error('Error al obtener los datos:', error);
-        res.status(500).send('Error del servidor');
-    }
+  try {
+    const datosGenerales = await DatosGenerales.findAll();
+    res.json({ datosGenerales });
+  } catch (error) {
+    console.error('Error al obtener los datos:', error);
+    res.status(500).send('Error del servidor');
+  }
 });
 
 app.listen(PORT, () => {
