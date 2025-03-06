@@ -37,8 +37,8 @@ function VistaGeneral() {
     const [rectificaciones, setRectificaciones] = useState([]);
     const [diferenciasContribucionesPedimento, setDiferenciasContribucionesPedimento] = useState([]);
     const [incidenciasReconocimientoAduanero, setIncidenciasReconocimientoAduanero] = useState([]);
-    const [resumen, setResumen] = useState([]);
     const [seleccionAutomatizada, setSeleccionAutomatizada] = useState([]);
+    const [resumen, setResumen] = useState([]);
     const [activeTab, setActiveTab] = useState('datosGenerales');
     const [busqueda, setBusqueda] = useState('');
     const [hiddenColumns, setHiddenColumns] = useState(new Set());
@@ -1820,118 +1820,33 @@ function VistaGeneral() {
             return;
         }
 
-        // Crear objeto con todas las tablas
         const dataFiltrada = {
-            datosGenerales: datosGenerales.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            transporteMercancias: transporteMercancias.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            guias: guias.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            contenedores: contenedores.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            identificadoresPedimento: identificadoresPedimento.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            contribucionesPedimento: contribucionesPedimento.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            observacionesPedimento: observacionesPedimento.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            descargosMercancias: descargosMercancias.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            destinatariosMercancia: destinatariosMercancia.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            partidas: partidas.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            mercancias: mercancias.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            casosPartida: casosPartida.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            permisosPartida: permisosPartida.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            cuentasAduanerasGarantiaPartida: cuentasAduanerasGarantiaPartida.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            tasasContribucionesPartida: tasasContribucionesPartida.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            contribucionesPartida: contribucionesPartida.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            observacionesPartida: observacionesPartida.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            rectificaciones: rectificaciones.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            diferenciasContribucionesPedimento: diferenciasContribucionesPedimento.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            incidenciasReconocimientoAduanero: incidenciasReconocimientoAduanero.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            resumen: resumen.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            ),
-            seleccionAutomatizada: seleccionAutomatizada.filter(item => 
-                item.Fecha_Pago_Real && 
-                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
-                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
-            )
+            datosGenerales: datosGenerales || [],
+            transporteMercancias: transporteMercancias || [],
+            guias: guias || [],
+            contenedores: contenedores || [],
+            facturas: facturas || [],
+            fechasPedimento: fechasPedimento || [],
+            casosPedimento: casosPedimento || [],
+            cuentasAduanerasGarantiaPedimento: cuentasAduanerasGarantiaPedimento || [],
+            tasasPedimento: tasasPedimento || [],
+            contribucionesPedimento: contribucionesPedimento || [],
+            observacionesPedimento: observacionesPedimento || [],
+            descargosMercancias: descargosMercancias || [],
+            destinatariosMercancia: destinatariosMercancia || [],
+            partidas: partidas || [],
+            mercancias: mercancias || [],
+            permisosPartida: permisosPartida || [],
+            casosPartida: casosPartida || [],
+            cuentasAduanerasGarantiaPartida: cuentasAduanerasGarantiaPartida || [],
+            tasasContribucionesPartida: tasasContribucionesPartida || [],
+            contribucionesPartida: contribucionesPartida || [],
+            observacionesPartida: observacionesPartida || [],
+            rectificaciones: rectificaciones || [],
+            diferenciasContribucionesPedimento: diferenciasContribucionesPedimento || [],
+            incidenciasReconocimientoAduanero: incidenciasReconocimientoAduanero || [],
+            seleccionAutomatizada: seleccionAutomatizada || [],
+            resumen: resumen || []
         };
 
         console.log('Datos a enviar:', { fechaInicio, fechaFin, data: dataFiltrada }); // Para debug
