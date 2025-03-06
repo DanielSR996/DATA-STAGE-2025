@@ -32,13 +32,16 @@ const DiferenciasContribucionesPedimento = require('./models/DiferenciasContribu
 const IncidenciasReconocimientoAduanero = require('./models/IncidenciasReconocimientoAduanero');
 const SeleccionAutomatizada = require('./models/SeleccionAutomatizada');
 const Resumen = require('./models/Resumen');
+const xlsx = require('xlsx');
 // Importa otros modelos según sea necesario
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Usa el middleware cors
+// Agregar estos middleware ANTES de las rutas
 app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Configuración de Multer para guardar archivos temporalmente
 const storage = multer.diskStorage({
@@ -923,6 +926,69 @@ app.get('/api/vista-general', async (req, res) => {
     console.error('Error detallado:', error);
     res.status(500).json({ error: 'Error al obtener datos', details: error.message });
   }
+});
+
+app.post('/api/exportar-excel', async (req, res) => {
+    try {
+        const { fechaInicio, fechaFin, data } = req.body;
+
+        if (!fechaInicio || !fechaFin || !data) {
+            return res.status(400).json({ error: 'Faltan datos requeridos' });
+        }
+
+        // Crear un nuevo libro de Excel
+        const wb = xlsx.utils.book_new();
+
+        // Mapeo de nombres largos a nombres cortos
+        const nombreHojas = {
+            datosGenerales: 'Datos_Generales',
+            transporteMercancias: 'Transporte',
+            guias: 'Guias',
+            contenedores: 'Contenedores',
+            identificadoresPedimento: 'Identificadores',
+            contribucionesPedimento: 'Contribuciones_Ped',
+            observacionesPedimento: 'Observaciones_Ped',
+            descargosMercancias: 'Descargos',
+            destinatariosMercancia: 'Destinatarios',
+            partidas: 'Partidas',
+            mercancias: 'Mercancias',
+            casosPartida: 'Casos',
+            permisosPartida: 'Permisos',
+            cuentasAduanerasGarantiaPartida: 'Cuentas_Garantia',
+            tasasContribucionesPartida: 'Tasas',
+            contribucionesPartida: 'Contribuciones_Part',
+            observacionesPartida: 'Observaciones_Part',
+            rectificaciones: 'Rectificaciones',
+            diferenciasContribucionesPedimento: 'Diferencias',
+            incidenciasReconocimientoAduanero: 'Incidencias',
+            resumen: 'Resumen',
+            seleccionAutomatizada: 'Seleccion_Auto'
+        };
+
+        // Convertir cada tabla en una hoja de Excel
+        Object.entries(data).forEach(([nombreTabla, datos]) => {
+            if (Array.isArray(datos)) {
+                const nombreCorto = nombreHojas[nombreTabla] || nombreTabla;
+                const ws = xlsx.utils.json_to_sheet(datos);
+                xlsx.utils.book_append_sheet(wb, ws, nombreCorto);
+            }
+        });
+
+        // Generar el archivo
+        const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+        // Enviar el archivo
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=reporte_${fechaInicio}_${fechaFin}.xlsx`);
+        res.send(buffer);
+    } catch (error) {
+        console.error('Error completo:', error);
+        res.status(500).json({ 
+            error: 'Error al exportar a Excel', 
+            details: error.message,
+            stack: error.stack 
+        });
+    }
 });
 
 app.listen(PORT, () => {
