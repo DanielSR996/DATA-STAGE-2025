@@ -43,6 +43,9 @@ function VistaGeneral() {
     const [busqueda, setBusqueda] = useState('');
     const [hiddenColumns, setHiddenColumns] = useState(new Set());
     const [showFloatingHeader, setShowFloatingHeader] = useState(false);
+    const [fechaInicio, setFechaInicio] = useState('');
+    const [fechaFin, setFechaFin] = useState('');
+    const [identificadoresPedimento, setIdentificadoresPedimento] = useState([]);
 
     useEffect(() => {
         fetch('http://localhost:3000/api/vista-general')
@@ -76,6 +79,7 @@ function VistaGeneral() {
                 setIncidenciasReconocimientoAduanero(data.incidenciasReconocimientoAduanero || []);
                 setResumen(data.resumen || []);
                 setSeleccionAutomatizada(data.seleccionAutomatizada || []);
+                setIdentificadoresPedimento(data.identificadoresPedimento || []);
             })
             .catch(error => console.error('Error al cargar los datos:', error));
     }, []);
@@ -1810,14 +1814,216 @@ function VistaGeneral() {
 
     console.log('Número de filas:', rows.length);
 
+    const exportarAExcel = () => {
+        if (!fechaInicio || !fechaFin) {
+            alert('Por favor seleccione un rango de fechas');
+            return;
+        }
+
+        // Crear objeto con todas las tablas
+        const dataFiltrada = {
+            datosGenerales: datosGenerales.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            transporteMercancias: transporteMercancias.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            guias: guias.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            contenedores: contenedores.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            identificadoresPedimento: identificadoresPedimento.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            contribucionesPedimento: contribucionesPedimento.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            observacionesPedimento: observacionesPedimento.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            descargosMercancias: descargosMercancias.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            destinatariosMercancia: destinatariosMercancia.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            partidas: partidas.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            mercancias: mercancias.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            casosPartida: casosPartida.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            permisosPartida: permisosPartida.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            cuentasAduanerasGarantiaPartida: cuentasAduanerasGarantiaPartida.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            tasasContribucionesPartida: tasasContribucionesPartida.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            contribucionesPartida: contribucionesPartida.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            observacionesPartida: observacionesPartida.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            rectificaciones: rectificaciones.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            diferenciasContribucionesPedimento: diferenciasContribucionesPedimento.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            incidenciasReconocimientoAduanero: incidenciasReconocimientoAduanero.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            resumen: resumen.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            ),
+            seleccionAutomatizada: seleccionAutomatizada.filter(item => 
+                item.Fecha_Pago_Real && 
+                new Date(item.Fecha_Pago_Real) >= new Date(fechaInicio) &&
+                new Date(item.Fecha_Pago_Real) <= new Date(fechaFin)
+            )
+        };
+
+        console.log('Datos a enviar:', { fechaInicio, fechaFin, data: dataFiltrada }); // Para debug
+
+        // Hacer la petición al backend
+        fetch('http://localhost:3000/api/exportar-excel', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                fechaInicio,
+                fechaFin,
+                data: dataFiltrada
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => Promise.reject(err));
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reporte_${fechaInicio}_${fechaFin}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        })
+        .catch(error => {
+            console.error('Error al exportar:', error);
+            alert('Error al exportar el archivo: ' + (error.message || 'Error desconocido'));
+        });
+    };
+
     return (
-        <div style={{ 
-            padding: '20px', 
-            marginTop: '80px',
-            height: 'calc(100vh - 100px)',
-            display: 'flex',
-            flexDirection: 'column'
-        }}>
+        <div style={{ padding: '20px' }}>
+            {/* Agregar el selector de fechas y botón de exportar */}
+            <div style={{ 
+                marginBottom: '20px',
+                display: 'flex',
+                gap: '20px',
+                alignItems: 'center',
+                padding: '15px',
+                backgroundColor: '#f5f5f5',
+                borderRadius: '8px'
+            }}>
+                <div>
+                    <label style={{ marginRight: '10px' }}>Fecha Inicio:</label>
+                    <input
+                        type="date"
+                        value={fechaInicio}
+                        onChange={(e) => setFechaInicio(e.target.value)}
+                        style={{
+                            padding: '8px',
+                            borderRadius: '4px',
+                            border: '1px solid #ddd'
+                        }}
+                    />
+                </div>
+                <div>
+                    <label style={{ marginRight: '10px' }}>Fecha Fin:</label>
+                    <input
+                        type="date"
+                        value={fechaFin}
+                        onChange={(e) => setFechaFin(e.target.value)}
+                        style={{
+                            padding: '8px',
+                            borderRadius: '4px',
+                            border: '1px solid #ddd'
+                        }}
+                    />
+                </div>
+                <button
+                    onClick={exportarAExcel}
+                    style={{
+                        padding: '10px 20px',
+                        backgroundColor: '#4CAF50',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold'
+                    }}
+                >
+                    Exportar a Excel
+                </button>
+            </div>
+
             <div style={{ 
                 marginBottom: '20px', 
                 display: 'flex',
