@@ -919,8 +919,8 @@ app.get('/api/vista-general', async (req, res) => {
       rectificaciones,
       diferenciasContribucionesPedimento,
       incidenciasReconocimientoAduanero,
-      resumen,
-      seleccionAutomatizada
+      seleccionAutomatizada,
+      resumen
     });
   } catch (error) {
     console.error('Error detallado:', error);
@@ -939,38 +939,50 @@ app.post('/api/exportar-excel', async (req, res) => {
         // Crear un nuevo libro de Excel
         const wb = xlsx.utils.book_new();
 
-        // Mapeo de nombres largos a nombres cortos
+        // Mapeo de nombres largos a nombres cortos (máximo 31 caracteres)
         const nombreHojas = {
             datosGenerales: 'Datos_Generales',
             transporteMercancias: 'Transporte',
             guias: 'Guias',
             contenedores: 'Contenedores',
-            identificadoresPedimento: 'Identificadores',
+            facturas: 'Facturas',
+            fechasPedimento: 'Fechas_Pedimento',
+            casosPedimento: 'Casos_Pedimento',
+            cuentasAduanerasGarantiaPedimento: 'Cuentas_Garantia_Ped',
+            tasasPedimento: 'Tasas_Pedimento',
             contribucionesPedimento: 'Contribuciones_Ped',
             observacionesPedimento: 'Observaciones_Ped',
             descargosMercancias: 'Descargos',
             destinatariosMercancia: 'Destinatarios',
             partidas: 'Partidas',
             mercancias: 'Mercancias',
-            casosPartida: 'Casos',
-            permisosPartida: 'Permisos',
-            cuentasAduanerasGarantiaPartida: 'Cuentas_Garantia',
-            tasasContribucionesPartida: 'Tasas',
+            permisosPartida: 'Permisos_Partida',
+            casosPartida: 'Casos_Partida',
+            cuentasAduanerasGarantiaPartida: 'Cuentas_Garantia_Part',
+            tasasContribucionesPartida: 'Tasas_Contribuciones',
             contribucionesPartida: 'Contribuciones_Part',
             observacionesPartida: 'Observaciones_Part',
             rectificaciones: 'Rectificaciones',
-            diferenciasContribucionesPedimento: 'Diferencias',
+            diferenciasContribucionesPedimento: 'Diferencias_Contrib',
             incidenciasReconocimientoAduanero: 'Incidencias',
-            resumen: 'Resumen',
-            seleccionAutomatizada: 'Seleccion_Auto'
+            seleccionAutomatizada: 'Seleccion_Auto',
+            resumen: 'Resumen'
         };
 
         // Convertir cada tabla en una hoja de Excel
         Object.entries(data).forEach(([nombreTabla, datos]) => {
-            if (Array.isArray(datos)) {
-                const nombreCorto = nombreHojas[nombreTabla] || nombreTabla;
-                const ws = xlsx.utils.json_to_sheet(datos);
-                xlsx.utils.book_append_sheet(wb, ws, nombreCorto);
+            try {
+                if (Array.isArray(datos)) {
+                    const nombreCorto = nombreHojas[nombreTabla];
+                    if (!nombreCorto) {
+                        console.warn(`Nombre no encontrado para la tabla: ${nombreTabla}`);
+                        return;
+                    }
+                    const ws = xlsx.utils.json_to_sheet(datos);
+                    xlsx.utils.book_append_sheet(wb, ws, nombreCorto);
+                }
+            } catch (err) {
+                console.error(`Error al procesar tabla ${nombreTabla}:`, err);
             }
         });
 
