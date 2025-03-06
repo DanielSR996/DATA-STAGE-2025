@@ -9,7 +9,12 @@ import {
     TableHead, 
     TableRow, 
     Paper,
-    Tooltip
+    Tooltip,
+    Box,
+    Container,
+    Typography,
+    AppBar,
+    Toolbar
 } from '@mui/material';
 
 function VistaGeneral() {
@@ -41,7 +46,7 @@ function VistaGeneral() {
     const [resumen, setResumen] = useState([]);
     const [activeTab, setActiveTab] = useState('datosGenerales');
     const [busqueda, setBusqueda] = useState('');
-    const [hiddenColumns, setHiddenColumns] = useState(new Set());
+    const [columnOrder, setColumnOrder] = useState([]);
     const [showFloatingHeader, setShowFloatingHeader] = useState(false);
     const [fechaInicio, setFechaInicio] = useState('');
     const [fechaFin, setFechaFin] = useState('');
@@ -1672,112 +1677,122 @@ function VistaGeneral() {
                 data = transporteMercancias;
                 break;
             case 'guias':
-                console.log('Tab de guías seleccionado');
-                console.log('Datos de guías disponibles:', guias);
                 data = guias;
                 break;
             case 'contenedores':
-                console.log('Tab de contenedores seleccionado');
-                console.log('Datos de contenedores disponibles:', contenedores);
                 data = contenedores;
                 break;
             case 'facturas':
-                console.log('Tab de facturas seleccionado');
-                console.log('Datos de facturas disponibles:', facturas);
                 data = facturas;
                 break;
             case 'fechasPedimento':
-                console.log('Tab de fechas pedimento seleccionado');
-                console.log('Datos de fechas pedimento disponibles:', fechasPedimento);
                 data = fechasPedimento;
                 break;
             case 'casosPedimento':
-                console.log('Tab de casos pedimento seleccionado');
-                console.log('Datos de casos pedimento disponibles:', casosPedimento);
                 data = casosPedimento;
                 break;
             case 'cuentasAduanerasGarantiaPedimento':
-                console.log('Tab de cuentas aduaneras garantía pedimento seleccionado');
                 data = cuentasAduanerasGarantiaPedimento;
                 break;
             case 'tasasPedimento':
-                console.log('Tab de tasas pedimento seleccionado');
                 data = tasasPedimento;
                 break;
             case 'contribucionesPedimento':
-                console.log('Tab de contribuciones pedimento seleccionado');
                 data = contribucionesPedimento;
                 break;
             case 'observacionesPedimento':
-                console.log('Tab de observaciones pedimento seleccionado');
                 data = observacionesPedimento;
                 break;
             case 'descargosMercancias':
-                console.log('Tab de descargos mercancías seleccionado');
                 data = descargosMercancias;
                 break;
             case 'destinatariosMercancia':
-                console.log('Tab de destinatarios mercancía seleccionado');
                 data = destinatariosMercancia;
                 break;
             case 'partidas':
-                console.log('Tab de partidas seleccionado');
                 data = partidas;
                 break;
             case 'mercancias':
-                console.log('Tab de mercancías seleccionado');
                 data = mercancias;
                 break;
             case 'permisosPartida':
-                console.log('Tab de permisos partida seleccionado');
                 data = permisosPartida;
                 break;
             case 'casosPartida':
-                console.log('Tab de casos partida seleccionado');
                 data = casosPartida;
                 break;
             case 'cuentasAduanerasGarantiaPartida':
-                console.log('Tab de cuentas aduaneras garantía partida seleccionado');
                 data = cuentasAduanerasGarantiaPartida;
                 break;
             case 'tasasContribucionesPartida':
-                console.log('Tab de tasas contribuciones partida seleccionado');
                 data = tasasContribucionesPartida;
                 break;
             case 'contribucionesPartida':
-                console.log('Tab de contribuciones partida seleccionado');
                 data = contribucionesPartida;
                 break;
             case 'observacionesPartida':
-                console.log('Tab de observaciones partida seleccionado');
                 data = observacionesPartida;
                 break;
             case 'rectificaciones':
-                console.log('Tab de rectificaciones seleccionado');
                 data = rectificaciones;
                 break;
             case 'diferenciasContribucionesPedimento':
-                console.log('Tab de diferencias contribuciones pedimento seleccionado');
                 data = diferenciasContribucionesPedimento;
                 break;
             case 'incidenciasReconocimientoAduanero':
-                console.log('Tab de incidencias reconocimiento aduanero seleccionado');
                 data = incidenciasReconocimientoAduanero;
                 break;
             case 'resumen':
-                console.log('Tab de resumen seleccionado');
                 data = resumen;
                 break;
             case 'seleccionAutomatizada':
-                console.log('Tab de selección automatizada seleccionado');
                 data = seleccionAutomatizada;
                 break;
             default:
                 data = datosGenerales;
         }
-        console.log(`Datos para la tabla (${activeTab}):`, data);
-        return Array.isArray(data) ? data : [];
-    }, [activeTab, datosGenerales, transporteMercancias, guias, contenedores, facturas, fechasPedimento, casosPedimento, cuentasAduanerasGarantiaPedimento, tasasPedimento, contribucionesPedimento, observacionesPedimento, descargosMercancias, destinatariosMercancia, partidas, mercancias, permisosPartida, casosPartida, cuentasAduanerasGarantiaPartida, tasasContribucionesPartida, contribucionesPartida, observacionesPartida, rectificaciones, diferenciasContribucionesPedimento, incidenciasReconocimientoAduanero, resumen, seleccionAutomatizada]);
+
+        // Aplicar el filtro de búsqueda
+        if (busqueda && data) {
+            return data.filter(row => 
+                Object.values(row).some(value => 
+                    value && 
+                    value.toString().toLowerCase().includes(busqueda.toLowerCase())
+                )
+            );
+        }
+
+        return data || [];
+    }, [
+        activeTab,
+        busqueda,
+        datosGenerales,
+        transporteMercancias,
+        guias,
+        contenedores,
+        facturas,
+        fechasPedimento,
+        casosPedimento,
+        cuentasAduanerasGarantiaPedimento,
+        tasasPedimento,
+        contribucionesPedimento,
+        observacionesPedimento,
+        descargosMercancias,
+        destinatariosMercancia,
+        partidas,
+        mercancias,
+        permisosPartida,
+        casosPartida,
+        cuentasAduanerasGarantiaPartida,
+        tasasContribucionesPartida,
+        contribucionesPartida,
+        observacionesPartida,
+        rectificaciones,
+        diferenciasContribucionesPedimento,
+        incidenciasReconocimientoAduanero,
+        resumen,
+        seleccionAutomatizada
+    ]);
 
     const filteredData = useMemo(() => {
         if (!busqueda) return tableData;
@@ -1797,18 +1812,19 @@ function VistaGeneral() {
         prepareRow,
     } = useTable({
         columns,
-        data: tableData
+        data: tableData,
+        initialState: {
+            columnOrder: columnOrder
+        },
+        manualColumnOrder: true,
     });
 
     const toggleColumn = (columnId) => {
-        setHiddenColumns(prev => {
-            const next = new Set(prev);
-            if (next.has(columnId)) {
-                next.delete(columnId);
-            } else {
-                next.add(columnId);
+        setColumnOrder(prevOrder => {
+            if (!prevOrder.includes(columnId)) {
+                return [...prevOrder, columnId];
             }
-            return next;
+            return prevOrder.filter(id => id !== columnId);
         });
     };
 
@@ -1886,19 +1902,40 @@ function VistaGeneral() {
     };
 
     return (
-        <div style={{ padding: '20px' }}>
-            {/* Agregar el selector de fechas y botón de exportar */}
-            <div style={{ 
-                marginBottom: '20px',
-                display: 'flex',
-                gap: '20px',
-                alignItems: 'center',
-                padding: '15px',
+        <Box sx={{ 
+            flexGrow: 1,
+            mt: '64px', // Espacio para el navbar
+            p: 3,
                 backgroundColor: '#f5f5f5',
-                borderRadius: '8px'
-            }}>
-                <div>
-                    <label style={{ marginRight: '10px' }}>Fecha Inicio:</label>
+            minHeight: 'calc(100vh - 64px)'
+        }}>
+            <Container maxWidth={false}>
+                <Paper elevation={3} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                    <Typography variant="h5" component="h1" gutterBottom sx={{ 
+                        color: '#1976d2',
+                        fontWeight: 'bold',
+                        mb: 3
+                    }}>
+                        Vista General de Pedimentos
+                    </Typography>
+
+                    {/* Panel de Filtros y Exportación */}
+                    <Paper 
+                        elevation={2} 
+                        sx={{ 
+                            p: 2, 
+                            mb: 3, 
+                            display: 'flex', 
+                            gap: 2,
+                            alignItems: 'center',
+                            backgroundColor: '#fff'
+                        }}
+                    >
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                            <Box>
+                                <Typography variant="subtitle2" gutterBottom>
+                                    Fecha Inicio
+                                </Typography>
                     <input
                         type="date"
                         value={fechaInicio}
@@ -1909,9 +1946,11 @@ function VistaGeneral() {
                             border: '1px solid #ddd'
                         }}
                     />
-                </div>
-                <div>
-                    <label style={{ marginRight: '10px' }}>Fecha Fin:</label>
+                            </Box>
+                            <Box>
+                                <Typography variant="subtitle2" gutterBottom>
+                                    Fecha Fin
+                                </Typography>
                     <input
                         type="date"
                         value={fechaFin}
@@ -1922,378 +1961,32 @@ function VistaGeneral() {
                             border: '1px solid #ddd'
                         }}
                     />
-                </div>
+                            </Box>
                 <button
                     onClick={exportarAExcel}
                     style={{
                         padding: '10px 20px',
-                        backgroundColor: '#4CAF50',
+                                    backgroundColor: '#1976d2',
                         color: 'white',
                         border: 'none',
                         borderRadius: '4px',
                         cursor: 'pointer',
-                        fontWeight: 'bold'
-                    }}
-                >
-                    Exportar a Excel
-                </button>
-            </div>
-
-            <div style={{ 
-                marginBottom: '20px', 
-                display: 'flex',
-                gap: '10px',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                width: '100%'
-            }}>
-                <div style={{ 
-                    display: 'flex', 
-                    gap: '10px',
-                    overflowX: 'auto',
-                    paddingBottom: '10px',
-                    maxWidth: 'calc(100% - 320px)',
-                    WebkitOverflowScrolling: 'touch',
-                    // Estilos modernos para el scrollbar
-                    '&::-webkit-scrollbar': {
-                        height: '8px',
-                        backgroundColor: '#f5f5f5'
-                    },
-                    '&::-webkit-scrollbar-track': {
-                        borderRadius: '4px',
-                        backgroundColor: '#f5f5f5'
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                        borderRadius: '4px',
-                        backgroundColor: '#888',
+                                    fontWeight: 'bold',
+                                    transition: 'background-color 0.3s',
                         '&:hover': {
-                            backgroundColor: '#666'
-                        }
-                    }
-                }}>
-                    <button 
-                        onClick={() => setActiveTab('datosGenerales')}
-                        style={{ 
-                            backgroundColor: activeTab === 'datosGenerales' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Datos Generales
+                                        backgroundColor: '#1565c0'
+                                    }
+                                }}
+                            >
+                                Exportar a Excel
                     </button>
-                    <button 
-                        onClick={() => setActiveTab('transporteMercancias')}
-                        style={{ 
-                            backgroundColor: activeTab === 'transporteMercancias' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Transporte Mercancías
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('guias')}
-                        style={{ 
-                            backgroundColor: activeTab === 'guias' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Guías
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('contenedores')}
-                        style={{ 
-                            backgroundColor: activeTab === 'contenedores' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Contenedores
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('facturas')}
-                        style={{ 
-                            backgroundColor: activeTab === 'facturas' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Facturas
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('fechasPedimento')}
-                        style={{ 
-                            backgroundColor: activeTab === 'fechasPedimento' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Fechas Pedimento
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('casosPedimento')}
-                        style={{ 
-                            backgroundColor: activeTab === 'casosPedimento' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Casos Pedimento
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('cuentasAduanerasGarantiaPedimento')}
-                        style={{ 
-                            backgroundColor: activeTab === 'cuentasAduanerasGarantiaPedimento' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Cuentas Aduaneras Garantía
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('tasasPedimento')}
-                        style={{ 
-                            backgroundColor: activeTab === 'tasasPedimento' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Tasas Pedimento
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('contribucionesPedimento')}
-                        style={{ 
-                            backgroundColor: activeTab === 'contribucionesPedimento' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Contribuciones Pedimento
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('observacionesPedimento')}
-                        style={{ 
-                            backgroundColor: activeTab === 'observacionesPedimento' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Observaciones Pedimento
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('descargosMercancias')}
-                        style={{ 
-                            backgroundColor: activeTab === 'descargosMercancias' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Descargos Mercancías
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('destinatariosMercancia')}
-                        style={{ 
-                            backgroundColor: activeTab === 'destinatariosMercancia' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Destinatarios Mercancía
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('partidas')}
-                        style={{ 
-                            backgroundColor: activeTab === 'partidas' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Partidas
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('mercancias')}
-                        style={{ 
-                            backgroundColor: activeTab === 'mercancias' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Mercancías
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('permisosPartida')}
-                        style={{ 
-                            backgroundColor: activeTab === 'permisosPartida' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Permisos Partida
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('casosPartida')}
-                        style={{ 
-                            backgroundColor: activeTab === 'casosPartida' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Casos Partida
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('cuentasAduanerasGarantiaPartida')}
-                        style={{ 
-                            backgroundColor: activeTab === 'cuentasAduanerasGarantiaPartida' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Cuentas Aduaneras Garantía Partida
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('tasasContribucionesPartida')}
-                        style={{ 
-                            backgroundColor: activeTab === 'tasasContribucionesPartida' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Tasas Contribuciones Partida
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('contribucionesPartida')}
-                        style={{ 
-                            backgroundColor: activeTab === 'contribucionesPartida' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Contribuciones Partida
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('observacionesPartida')}
-                        style={{ 
-                            backgroundColor: activeTab === 'observacionesPartida' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Observaciones Partida
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('rectificaciones')}
-                        style={{ 
-                            backgroundColor: activeTab === 'rectificaciones' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Rectificaciones
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('diferenciasContribucionesPedimento')}
-                        style={{ 
-                            backgroundColor: activeTab === 'diferenciasContribucionesPedimento' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Diferencias Contribuciones Pedimento
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('incidenciasReconocimientoAduanero')}
-                        style={{ 
-                            backgroundColor: activeTab === 'incidenciasReconocimientoAduanero' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Incidencias Reconocimiento Aduanero
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('resumen')}
-                        style={{ 
-                            backgroundColor: activeTab === 'resumen' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Resumen
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('seleccionAutomatizada')}
-                        style={{ 
-                            backgroundColor: activeTab === 'seleccionAutomatizada' ? '#4CAF50' : '#f1f1f1',
-                            padding: '10px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Selección Automatizada
-                    </button>
-                </div>
-                
-                <div style={{
+                        </Box>
+
+                        {/* Buscador */}
+                        <Box sx={{ 
                     position: 'relative',
-                    width: '300px',
-                    flexShrink: 0
-                }}>
-                    <div style={{
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
+                            ml: 'auto',
+                            width: '300px'
                     }}>
                         <input
                             type="text"
@@ -2304,99 +1997,191 @@ function VistaGeneral() {
                                 width: '100%',
                                 padding: '12px 40px 12px 16px',
                                 fontSize: '14px',
-                                border: '2px solid #e0e0e0',
+                                    border: '1px solid #e0e0e0',
                                 borderRadius: '25px',
                                 outline: 'none',
-                                transition: 'all 0.3s ease',
-                                backgroundColor: '#f8f9fa',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                '&:focus': {
-                                    borderColor: '#4CAF50',
-                                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-                                }
+                                    backgroundColor: '#f8f9fa'
                             }}
                         />
                         <FaSearch style={{
                             position: 'absolute',
                             right: '16px',
-                            color: '#666',
-                            fontSize: '16px'
-                        }} />
-                    </div>
-                </div>
-            </div>
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: '#666'
+                            }} />
+                        </Box>
+                    </Paper>
 
-            <TableContainer 
-                component={Paper} 
-                className="table-container"
+                    {/* Tabs de navegación */}
+                    <Box sx={{ 
+                        mb: 3,
+                        display: 'flex',
+                        gap: 1,
+                        overflowX: 'auto',
+                        pb: 1,
+                        '&::-webkit-scrollbar': {
+                            height: '8px'
+                        },
+                        '&::-webkit-scrollbar-track': {
+                            backgroundColor: '#f5f5f5',
+                            borderRadius: '4px'
+                        },
+                        '&::-webkit-scrollbar-thumb': {
+                            backgroundColor: '#888',
+                            borderRadius: '4px',
+                            '&:hover': {
+                                backgroundColor: '#666'
+                            }
+                        }
+                    }}>
+                        {[
+                            { id: 'datosGenerales', label: 'Datos Generales' },
+                            { id: 'transporteMercancias', label: 'Transporte Mercancías' },
+                            { id: 'contenedores', label: 'Contenedores' },
+                            { id: 'facturas', label: 'Facturas' },
+                            { id: 'fechasPedimento', label: 'Fechas Pedimento' },
+                            { id: 'casosPedimento', label: 'Casos Pedimento' },
+                            { id: 'cuentasAduanerasGarantiaPedimento', label: 'Cuentas Aduaneras Garantía' },
+                            { id: 'tasasPedimento', label: 'Tasas Pedimento' },
+                            { id: 'contribucionesPedimento', label: 'Contribuciones Pedimento' },
+                            { id: 'observacionesPedimento', label: 'Observaciones Pedimento' },
+                            { id: 'descargosMercancias', label: 'Descargos Mercancías' },
+                            { id: 'destinatariosMercancia', label: 'Destinatarios Mercancía' },
+                            { id: 'partidas', label: 'Partidas' },
+                            { id: 'mercancias', label: 'Mercancías' },
+                            { id: 'permisosPartida', label: 'Permisos Partida' },
+                            { id: 'casosPartida', label: 'Casos Partida' },
+                            { id: 'cuentasAduanerasGarantiaPartida', label: 'Cuentas Aduaneras Garantía Partida' },
+                            { id: 'tasasContribucionesPartida', label: 'Tasas Contribuciones Partida' },
+                            { id: 'contribucionesPartida', label: 'Contribuciones Partida' },
+                            { id: 'observacionesPartida', label: 'Observaciones Partida' },
+                            { id: 'rectificaciones', label: 'Rectificaciones' },
+                            { id: 'diferenciasContribucionesPedimento', label: 'Diferencias Contribuciones' },
+                            { id: 'incidenciasReconocimientoAduanero', label: 'Incidencias Reconocimiento' },
+                            { id: 'resumen', label: 'Resumen' },
+                            { id: 'seleccionAutomatizada', label: 'Selección Automatizada' }
+                        ].map(tab => (
+                            <button 
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
                 style={{ 
-                    flex: 1,
-                    width: '100%',
-                    height: '100%',
+                                    backgroundColor: activeTab === tab.id ? '#1976d2' : '#fff',
+                                    color: activeTab === tab.id ? '#fff' : '#333',
+                                    padding: '10px 20px',
+                                    border: '1px solid #ddd',
                     borderRadius: '4px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    overflowX: 'auto',
-                    overflowY: 'auto'
-                }}
-            >
-                <Table 
-                    {...getTableProps()} 
-                    stickyHeader 
-                    style={{
-                        width: '100%',
-                        height: '100%'
-                    }}
-                >
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap',
+                                    transition: 'all 0.3s ease',
+                                    fontWeight: activeTab === tab.id ? 'bold' : 'normal',
+                                    minWidth: 'fit-content',
+                                    fontSize: '0.875rem',
+                                    boxShadow: activeTab === tab.id ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
+                                    '&:hover': {
+                                        backgroundColor: activeTab === tab.id ? '#1565c0' : '#f5f5f5',
+                                        transform: 'translateY(-1px)'
+                                    }
+                                }}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </Box>
+
+                    {/* Tabla */}
+                    <TableContainer 
+                        component={Paper} 
+                        sx={{ 
+                            maxHeight: 'calc(100vh - 350px)',
+                            borderRadius: 2,
+                            '& .MuiTableCell-root': {
+                                fontSize: '0.875rem'
+                            },
+                            '& .MuiTableHead-root': {
+                                backgroundColor: '#f5f5f5'
+                            },
+                            '& .MuiTableRow-root:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                            }
+                        }}
+                    >
+                        <Table stickyHeader>
                     <TableHead>
                         {headerGroups.map(headerGroup => (
                             <TableRow {...headerGroup.getHeaderGroupProps()}>
-                                {headerGroup.headers.map(column => (
-                                    <TableCell
-                                        {...column.getHeaderProps()}
-                                        onClick={() => toggleColumn(column.id)}
-                                        style={{
-                                            backgroundColor: hiddenColumns.has(column.id) ? '#ffcccc' : '#f9f9f9',
-                                            cursor: 'pointer',
-                                            fontWeight: 'bold',
-                                            padding: '16px 8px',
-                                            fontSize: '0.95rem'
-                                        }}
-                                    >
-                                        {column.render('Header')}
-                                    </TableCell>
-                                ))}
+                                {headerGroup.headers
+                                    .sort((a, b) => {
+                                        const aIndex = columnOrder.indexOf(a.id);
+                                        const bIndex = columnOrder.indexOf(b.id);
+                                        if (aIndex === -1 && bIndex === -1) return 0;
+                                        if (aIndex === -1) return -1;
+                                        if (bIndex === -1) return 1;
+                                        return aIndex - bIndex;
+                                    })
+                                    .map(column => (
+                                        <TableCell
+                                            {...column.getHeaderProps()}
+                                            onClick={() => toggleColumn(column.id)}
+                                            sx={{
+                                                backgroundColor: '#f5f5f5',
+                                                cursor: 'pointer',
+                                                fontWeight: 'bold',
+                                                whiteSpace: 'nowrap',
+                                                '&:hover': {
+                                                    backgroundColor: '#e0e0e0'
+                                                }
+                                            }}
+                                        >
+                                            {column.render('Header')}
+                                        </TableCell>
+                                    ))}
                             </TableRow>
                         ))}
                     </TableHead>
-                    <TableBody {...getTableBodyProps()}>
+                            <TableBody>
                         {rows.map(row => {
                             prepareRow(row);
                             return (
-                                <TableRow {...row.getRowProps()}>
-                                    {row.cells.map(cell => {
-                                        if (hiddenColumns.has(cell.column.id)) return null;
-                                        return (
+                                <TableRow 
+                                    {...row.getRowProps()}
+                                    sx={{
+                                        '&:nth-of-type(odd)': {
+                                            backgroundColor: 'rgba(0, 0, 0, 0.02)'
+                                        }
+                                    }}
+                                >
+                                    {row.cells
+                                        .sort((a, b) => {
+                                            const aIndex = columnOrder.indexOf(a.column.id);
+                                            const bIndex = columnOrder.indexOf(b.column.id);
+                                            if (aIndex === -1 && bIndex === -1) return 0;
+                                            if (aIndex === -1) return -1;
+                                            if (bIndex === -1) return 1;
+                                            return aIndex - bIndex;
+                                        })
+                                        .map(cell => (
                                             <TableCell
                                                 {...cell.getCellProps()}
-                                                style={{
-                                                    padding: '12px 8px',
+                                                sx={{
+                                                    padding: '8px 16px',
                                                     whiteSpace: 'normal',
                                                     wordBreak: 'break-word',
-                                                    maxWidth: cell.column.width || '200px',
-                                                    overflow: 'visible'
+                                                    maxWidth: cell.column.width || '200px'
                                                 }}
                                             >
                                                 {cell.render('Cell')}
                                             </TableCell>
-                                        );
-                                    })}
+                                        ))}
                                 </TableRow>
                             );
                         })}
                     </TableBody>
                 </Table>
             </TableContainer>
-        </div>
+                </Paper>
+            </Container>
+        </Box>
     );
 }
 
