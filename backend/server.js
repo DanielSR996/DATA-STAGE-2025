@@ -608,6 +608,289 @@ app.get('/api/vista-general', async (req, res) => {
       FROM 510_contribuciones_pedimento
     `);
 
+    // Modificar solo la consulta de observaciones pedimento
+    const [observacionesPedimento] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Secuencia_Observacion,
+        CAST(CONVERT(Observaciones USING utf8mb4) AS CHAR CHARACTER SET utf8mb4) as Observaciones,
+        DATE_FORMAT(Fecha_Validacion_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Validacion_Pago_Real
+      FROM 511_observaciones_pedimento
+    `);
+
+    // Agregar un log específico para esta tabla
+    console.log('Observaciones Pedimento:', observacionesPedimento?.length || 0);
+
+    // Agregar la consulta para descargos mercancias
+    const [descargosMercancias] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Patente_Aduanal_Original,
+        Numero_Pedimento_Original,
+        Clave_Sec_Aduanera_Despacho_Original,
+        Clave_Documento_Original,
+        DATE_FORMAT(Fecha_Operacion_Original, '%Y-%m-%d %H:%i:%s') as Fecha_Operacion_Original,
+        Fraccion_Arancelaria_Original,
+        Clave_Unidad_Medida_Original,
+        Cantidad_Mercancia_Descargada,
+        Clave_Tipo_Pedimento,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 512_descargos_mercancias
+    `);
+
+    // Agregar la consulta para destinatarios mercancia
+    const [destinatariosMercancia] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Identificacion_Fiscal_Destinatario,
+        Nombre_Destinatario,
+        Calle_Domicilio_Destinatario,
+        Numero_Interior_Domicilio_Destinatario,
+        Numero_Exterior_Domicilio_Destinatario,
+        Codigo_Postal_Domicilio_Destinatario,
+        Municipio_Ciudad_Domicilio_Destinatario,
+        Clave_Pais_Domicilio_Destinatario,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 520_destinatarios_mercancia
+    `);
+
+    // Agregar la consulta para partidas
+    const [partidas] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Subdivision_Fraccion_Arancelaria,
+        Descripcion_Mercancia,
+        Precio_Unitario,
+        Valor_Aduana,
+        Valor_Comercial,
+        Valor_Dolares,
+        Cantidad_Mercancias_Unidad_Medida_Comercial,
+        Clave_Unidad_Medida_Comercial,
+        Cantidad_Mercancia_Unidad_Medida_Tarifa,
+        Clave_Unidad_Medida_Tarifa,
+        Valor_Agregado,
+        Clave_Vinculacion,
+        Clave_Metodo_Valorizacion,
+        Codigo_Mercancia_Producto,
+        Marca_Mercancia_Producto,
+        Modelo_Mercancia_Producto,
+        Clave_Pais_Origen_Destino,
+        Clave_Pais_Comprador_Vendedor,
+        Clave_Entidad_Federativa_Origen,
+        Clave_Entidad_Federativa_Destino,
+        Clave_Entidad_Federativa_Comprador,
+        Clave_Entidad_Federativa_Vendedor,
+        Clave_Tipo_Operacion,
+        Clave_Documento,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 551_partidas
+    `);
+
+    // Agregar la consulta para mercancias
+    const [mercancias] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        VIN_Numero_Serie,
+        Kilometraje_Vehiculo,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 552_mercancias
+    `);
+
+    // Agregar la consulta para permisos partida
+    const [permisosPartida] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Clave_Permiso,
+        Firma_Descargo,
+        Numero_Permiso,
+        Valor_Comercial_Dolares,
+        Cantidad_Mercancia_Unidades_Medida_Tarifa,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 553_permiso_partida
+    `);
+
+    // Actualizar la consulta para casos partida
+    const [casosPartida] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Clave_Caso,
+        Identificador_Caso,
+        Complemento_Caso,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 554_casos_partida
+    `);
+
+    // Agregar la consulta para cuentas aduaneras garantía partida
+    const [cuentasAduanerasGarantiaPartida] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Clave_Institucion_Emisor,
+        Numero_Cuenta,
+        Folio_Constancia,
+        DATE_FORMAT(Fecha_Constancia, '%Y-%m-%d') as Fecha_Constancia,
+        Clave_Garantia,
+        Valor_Unitario_Titulo,
+        Total_Garantia,
+        Cantidad_Unidades_Medida_Precio_Estimado,
+        Titulos_Asignados,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 555_cuentas_aduaneras_garantia_partida
+    `);
+
+    // Agregar la consulta para tasas contribuciones partida
+    const [tasasContribucionesPartida] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Clave_Contribucion,
+        Tasa_Contribucion,
+        Clave_Tipo_Tasa,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 556_tasas_contribuciones_partida
+    `);
+
+    // Agregar la consulta para contribuciones partida
+    const [contribucionesPartida] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Clave_Contribucion,
+        Clave_Forma_Pago,
+        Importe_Pago,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 557_contribuciones_partida
+    `);
+
+    // Agregar la consulta para observaciones partida
+    const [observacionesPartida] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Secuencia_Observacion,
+        Observaciones,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 558_observaciones_partida
+    `);
+
+    // Agregar la consulta para rectificaciones
+    const [rectificaciones] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Clave_Documento,
+        DATE_FORMAT(Fecha_Pago, '%Y-%m-%d') as Fecha_Pago,
+        Numero_Pedimento_Anterior,
+        Patente_Aduanal_Anterior,
+        Clave_Sec_Aduanera_Despacho_Anterior,
+        Clave_Documento_Anterior,
+        DATE_FORMAT(Fecha_Operacion_Anterior, '%Y-%m-%d') as Fecha_Operacion_Anterior,
+        Numero_Pedimento_Original,
+        Patente_Aduanal_Original,
+        Clave_Sec_Aduanera_Despacho_Original,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 701_rectificaciones
+    `);
+
+    // Agregar la consulta para diferencias contribuciones pedimento
+    const [diferenciasContribucionesPedimento] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Clave_Contribucion,
+        Clave_Forma_Pago,
+        Importe_Pago,
+        Clave_Tipo_Pedimento,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 702_diferencias_contribuciones_pedimento
+    `);
+
+    // Agregar la consulta para incidencias reconocimiento aduanero
+    const [incidenciasReconocimientoAduanero] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Consecutivo_Remesa,
+        Numero_Seleccion_Automatizada,
+        DATE_FORMAT(Fecha_Inicio_Reconocimiento, '%Y-%m-%d') as Fecha_Inicio_Reconocimiento,
+        Hora_Inicio_Reconocimiento,
+        DATE_FORMAT(Fecha_Fin_Reconocimiento, '%Y-%m-%d') as Fecha_Fin_Reconocimiento,
+        Hora_Fin_Reconocimiento,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Clave_Documento,
+        Clave_Tipo_Operacion,
+        Grado_Incidencia,
+        DATE_FORMAT(Fecha_Seleccion_Automatizada, '%Y-%m-%d') as Fecha_Seleccion_Automatizada
+      FROM incidencias_reconocimiento_aduanero
+    `);
+
+    // Agregar la consulta para resumen
+    const [resumen] = await sequelize.query(`
+      SELECT 
+        Folio as Folio_Primaria,
+        RFCoPatenteAduanal,
+        DATE_FORMAT(Fecha_Inicial, '%Y-%m-%d') as Fecha_Inicial,
+        DATE_FORMAT(Fecha_Final, '%Y-%m-%d') as Fecha_Final,
+        DATE_FORMAT(Fecha_Ejecucion, '%Y-%m-%d') as Fecha_Ejecucion,
+        Total_Fracciones,
+        Total_Contribuciones
+      FROM resumen
+    `);
+
+    // Agregar la consulta para selección automatizada
+    const [seleccionAutomatizada] = await sequelize.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Consecutivo_Remesa,
+        Numero_Seleccion_Automatizada,
+        DATE_FORMAT(Fecha_Seleccion_Automatizada, '%Y-%m-%d') as Fecha_Seleccion_Automatizada,
+        Hora_Seleccion_Automatizada,
+        Semaforo_Fiscal,
+        Clave_Documento,
+        Clave_Tipo_Operacion
+      FROM seleccion_automatizada
+    `);
+
     res.json({
       datosGenerales,
       transporteMercancias,
@@ -618,7 +901,23 @@ app.get('/api/vista-general', async (req, res) => {
       casosPedimento,
       cuentasAduanerasGarantiaPedimento,
       tasasPedimento,
-      contribucionesPedimento
+      contribucionesPedimento,
+      observacionesPedimento,
+      descargosMercancias,
+      destinatariosMercancia,
+      partidas,
+      mercancias,
+      permisosPartida,
+      casosPartida,
+      cuentasAduanerasGarantiaPartida,
+      tasasContribucionesPartida,
+      contribucionesPartida,
+      observacionesPartida,
+      rectificaciones,
+      diferenciasContribucionesPedimento,
+      incidenciasReconocimientoAduanero,
+      resumen,
+      seleccionAutomatizada
     });
   } catch (error) {
     console.error('Error detallado:', error);
