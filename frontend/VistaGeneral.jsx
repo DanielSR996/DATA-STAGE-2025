@@ -51,6 +51,11 @@ function VistaGeneral() {
     const [fechaInicio, setFechaInicio] = useState('');
     const [fechaFin, setFechaFin] = useState('');
     const [identificadoresPedimento, setIdentificadoresPedimento] = useState([]);
+    // Agregar un nuevo estado para el ordenamiento
+    const [sortConfig, setSortConfig] = useState({
+        key: null,
+        direction: 'asc'
+    });
 
     useEffect(() => {
         fetch('http://localhost:3000/api/vista-general')
@@ -1804,6 +1809,38 @@ function VistaGeneral() {
         );
     }, [tableData, busqueda]);
 
+    // Función para ordenar los datos
+    const sortedData = useMemo(() => {
+        if (!sortConfig.key) return tableData;
+
+        return [...tableData].sort((a, b) => {
+            const aValue = a[sortConfig.key];
+            const bValue = b[sortConfig.key];
+
+            // Manejar valores nulos
+            if (aValue === null) return 1;
+            if (bValue === null) return -1;
+
+            // Detectar si los valores son números
+            const aNum = Number(aValue);
+            const bNum = Number(bValue);
+            
+            if (!isNaN(aNum) && !isNaN(bNum)) {
+                return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
+            }
+
+            // Ordenar como strings si no son números
+            const aStr = String(aValue).toLowerCase();
+            const bStr = String(bValue).toLowerCase();
+            
+            if (sortConfig.direction === 'asc') {
+                return aStr.localeCompare(bStr);
+            }
+            return bStr.localeCompare(aStr);
+        });
+    }, [tableData, sortConfig]);
+
+    // Modificar la configuración de useTable para usar los datos ordenados
     const {
         getTableProps,
         getTableBodyProps,
@@ -1812,7 +1849,7 @@ function VistaGeneral() {
         prepareRow,
     } = useTable({
         columns,
-        data: tableData,
+        data: sortedData,
         initialState: {
             columnOrder: columnOrder
         },
@@ -1820,12 +1857,31 @@ function VistaGeneral() {
     });
 
     const toggleColumn = (columnId) => {
-        setColumnOrder(prevOrder => {
-            if (!prevOrder.includes(columnId)) {
-                return [...prevOrder, columnId];
-            }
-            return prevOrder.filter(id => id !== columnId);
-        });
+        // Si se mantiene presionada la tecla Alt, mover la columna
+        if (window.event && window.event.altKey) {
+            setColumnOrder(prevOrder => {
+                if (!prevOrder.includes(columnId)) {
+                    return [...prevOrder, columnId];
+                }
+                return prevOrder.filter(id => id !== columnId);
+            });
+            } else {
+            // Si no se presiona Alt, ordenar la columna
+            setSortConfig(prevConfig => {
+                if (prevConfig.key === columnId) {
+                    // Cambiar dirección si es la misma columna
+                    return {
+                        key: columnId,
+                        direction: prevConfig.direction === 'asc' ? 'desc' : 'asc'
+                    };
+                }
+                // Nueva columna, comenzar con ascendente
+                return {
+                    key: columnId,
+                    direction: 'asc'
+                };
+            });
+        }
     };
 
     console.log('Número de filas:', rows.length);
@@ -2095,6 +2151,7 @@ function VistaGeneral() {
                         sx={{ 
                             maxHeight: 'calc(100vh - 350px)',
                             borderRadius: 2,
+                            overflow: 'auto',
                             '& .MuiTableCell-root': {
                                 fontSize: '0.875rem'
                             },
@@ -2103,82 +2160,130 @@ function VistaGeneral() {
                             },
                             '& .MuiTableRow-root:hover': {
                                 backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                            },
+                            // Aseguramos que el scroll horizontal funcione correctamente
+                            '& .MuiTable-root': {
+                                borderCollapse: 'separate'
                             }
                         }}
                     >
                         <Table stickyHeader>
-                    <TableHead>
-                        {headerGroups.map(headerGroup => (
-                            <TableRow {...headerGroup.getHeaderGroupProps()}>
-                                {headerGroup.headers
-                                    .sort((a, b) => {
-                                        const aIndex = columnOrder.indexOf(a.id);
-                                        const bIndex = columnOrder.indexOf(b.id);
-                                        if (aIndex === -1 && bIndex === -1) return 0;
-                                        if (aIndex === -1) return -1;
-                                        if (bIndex === -1) return 1;
-                                        return aIndex - bIndex;
-                                    })
-                                    .map(column => (
-                                        <TableCell
-                                            {...column.getHeaderProps()}
-                                            onClick={() => toggleColumn(column.id)}
+                            <TableHead>
+                                {headerGroups.map(headerGroup => (
+                                    <TableRow {...headerGroup.getHeaderGroupProps()}>
+                                        {headerGroup.headers
+                                            .sort((a, b) => {
+                                                const aIndex = columnOrder.indexOf(a.id);
+                                                const bIndex = columnOrder.indexOf(b.id);
+                                                if (aIndex === -1 && bIndex === -1) return 0;
+                                                if (aIndex === -1) return -1;
+                                                if (bIndex === -1) return 1;
+                                                return aIndex - bIndex;
+                                            })
+                                            .map((column, index) => (
+                                                <TableCell
+                                                    {...column.getHeaderProps()}
+                                                    onClick={() => toggleColumn(column.id)}
+                                                    sx={{
+                                                        backgroundColor: '#f5f5f5',
+                                                        cursor: 'pointer',
+                                                        fontWeight: 'bold',
+                                                        whiteSpace: 'nowrap',
+                                                        '&:hover': {
+                                                            backgroundColor: '#e0e0e0'
+                                                        },
+                                                        position: 'relative',
+                                                        // Aplicar sticky a la primera columna
+                                                        ...(index === 0 && {
+                                                            position: 'sticky',
+                                                            left: 0,
+                                                            zIndex: 3,
+                                                            backgroundColor: '#f5f5f5',
+                                                            borderRight: '1px solid rgba(224, 224, 224, 1)',
+                                                            // Sombra sutil para indicar el scroll
+                                                            '&::after': {
+                                                                content: '""',
+                                                                position: 'absolute',
+                                                                right: 0,
+                                                                top: 0,
+                                                                bottom: 0,
+                                                                width: '4px',
+                                                                boxShadow: '4px 0 4px rgba(0,0,0,0.1)',
+                                                                pointerEvents: 'none'
+                                                            }
+                                                        })
+                                                    }}
+                                                >
+                                                    {column.render('Header')}
+                                                    {sortConfig.key === column.id && (
+                                                        <span style={{ marginLeft: '8px' }}>
+                                                            {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                            ))}
+                                    </TableRow>
+                                ))}
+                            </TableHead>
+                            <TableBody>
+                                {rows.map(row => {
+                                    prepareRow(row);
+                                    return (
+                                        <TableRow 
+                                            {...row.getRowProps()}
                                             sx={{
-                                                backgroundColor: '#f5f5f5',
-                                                cursor: 'pointer',
-                                                fontWeight: 'bold',
-                                                whiteSpace: 'nowrap',
-                                                '&:hover': {
-                                                    backgroundColor: '#e0e0e0'
+                                                '&:nth-of-type(odd)': {
+                                                    backgroundColor: 'rgba(0, 0, 0, 0.02)'
                                                 }
                                             }}
                                         >
-                                            {column.render('Header')}
-                                        </TableCell>
-                                    ))}
-                            </TableRow>
-                        ))}
-                    </TableHead>
-                            <TableBody>
-                        {rows.map(row => {
-                            prepareRow(row);
-                            return (
-                                <TableRow 
-                                    {...row.getRowProps()}
-                                    sx={{
-                                        '&:nth-of-type(odd)': {
-                                            backgroundColor: 'rgba(0, 0, 0, 0.02)'
-                                        }
-                                    }}
-                                >
-                                    {row.cells
-                                        .sort((a, b) => {
-                                            const aIndex = columnOrder.indexOf(a.column.id);
-                                            const bIndex = columnOrder.indexOf(b.column.id);
-                                            if (aIndex === -1 && bIndex === -1) return 0;
-                                            if (aIndex === -1) return -1;
-                                            if (bIndex === -1) return 1;
-                                            return aIndex - bIndex;
-                                        })
-                                        .map(cell => (
-                                            <TableCell
-                                                {...cell.getCellProps()}
-                                                sx={{
-                                                    padding: '8px 16px',
-                                                    whiteSpace: 'normal',
-                                                    wordBreak: 'break-word',
-                                                    maxWidth: cell.column.width || '200px'
-                                                }}
-                                            >
-                                                {cell.render('Cell')}
-                                            </TableCell>
-                                        ))}
-                                </TableRow>
-                            );
-                        })}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                                            {row.cells
+                                                .sort((a, b) => {
+                                                    const aIndex = columnOrder.indexOf(a.column.id);
+                                                    const bIndex = columnOrder.indexOf(b.column.id);
+                                                    if (aIndex === -1 && bIndex === -1) return 0;
+                                                    if (aIndex === -1) return -1;
+                                                    if (bIndex === -1) return 1;
+                                                    return aIndex - bIndex;
+                                                })
+                                                .map((cell, index) => (
+                                                    <TableCell
+                                                        {...cell.getCellProps()}
+                                                        sx={{
+                                                            padding: '8px 16px',
+                                                            whiteSpace: 'normal',
+                                                            wordBreak: 'break-word',
+                                                            maxWidth: cell.column.width || '200px',
+                                                            // Aplicar sticky a la primera columna
+                                                            ...(index === 0 && {
+                                                                position: 'sticky',
+                                                                left: 0,
+                                                                zIndex: 2,
+                                                                backgroundColor: row.index % 2 === 0 ? '#fff' : 'rgba(0, 0, 0, 0.02)',
+                                                                borderRight: '1px solid rgba(224, 224, 224, 1)',
+                                                                // Sombra sutil para indicar el scroll
+                                                                '&::after': {
+                                                                    content: '""',
+                                                                    position: 'absolute',
+                                                                    right: 0,
+                                                                    top: 0,
+                                                                    bottom: 0,
+                                                                    width: '4px',
+                                                                    boxShadow: '4px 0 4px rgba(0,0,0,0.1)',
+                                                                    pointerEvents: 'none'
+                                                                }
+                                                            })
+                                                        }}
+                                                    >
+                                                        {cell.render('Cell')}
+                                                    </TableCell>
+                                                ))}
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
                 </Paper>
             </Container>
         </Box>
