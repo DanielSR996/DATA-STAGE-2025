@@ -2161,10 +2161,11 @@ function VistaGeneral() {
                             '& .MuiTableRow-root:hover': {
                                 backgroundColor: 'rgba(0, 0, 0, 0.04)'
                             },
-                            // Aseguramos que el scroll horizontal funcione correctamente
                             '& .MuiTable-root': {
                                 borderCollapse: 'separate'
-                            }
+                            },
+                            // Asegurar que el scroll funcione correctamente
+                            position: 'relative'
                         }}
                     >
                         <Table stickyHeader>
@@ -2185,22 +2186,21 @@ function VistaGeneral() {
                                                     {...column.getHeaderProps()}
                                                     onClick={() => toggleColumn(column.id)}
                                                     sx={{
-                                                        backgroundColor: '#f5f5f5',
+                                                        backgroundColor: '#f5f5f5 !important',
                                                         cursor: 'pointer',
                                                         fontWeight: 'bold',
                                                         whiteSpace: 'nowrap',
+                                                        padding: '16px',
+                                                        position: 'sticky', // Todos los headers son sticky
+                                                        top: 0, // Todos los headers se mantienen en la parte superior
+                                                        zIndex: index === 0 ? 3 : 2, // Mayor z-index para la primera columna
+                                                        left: index === 0 ? 0 : 'auto', // Solo la primera columna tiene left: 0
+                                                        borderBottom: '1px solid rgba(224, 224, 224, 1)',
                                                         '&:hover': {
-                                                            backgroundColor: '#e0e0e0'
+                                                            backgroundColor: '#e0e0e0 !important'
                                                         },
-                                                        position: 'relative',
-                                                        // Aplicar sticky a la primera columna
                                                         ...(index === 0 && {
-                                                            position: 'sticky',
-                                                            left: 0,
-                                                            zIndex: 3,
-                                                            backgroundColor: '#f5f5f5',
                                                             borderRight: '1px solid rgba(224, 224, 224, 1)',
-                                                            // Sombra sutil para indicar el scroll
                                                             '&::after': {
                                                                 content: '""',
                                                                 position: 'absolute',
@@ -2254,14 +2254,16 @@ function VistaGeneral() {
                                                             whiteSpace: 'normal',
                                                             wordBreak: 'break-word',
                                                             maxWidth: cell.column.width || '200px',
-                                                            // Aplicar sticky a la primera columna
+                                                            position: index === 0 ? 'sticky' : 'static',
+                                                            left: index === 0 ? 0 : 'auto',
+                                                            zIndex: index === 0 ? 2 : 1,
+                                                            backgroundColor: index === 0 
+                                                                ? row.index % 2 === 0 
+                                                                    ? '#ffffff !important' 
+                                                                    : '#f7f7f7 !important'
+                                                                : 'inherit',
                                                             ...(index === 0 && {
-                                                                position: 'sticky',
-                                                                left: 0,
-                                                                zIndex: 2,
-                                                                backgroundColor: row.index % 2 === 0 ? '#fff' : 'rgba(0, 0, 0, 0.02)',
                                                                 borderRight: '1px solid rgba(224, 224, 224, 1)',
-                                                                // Sombra sutil para indicar el scroll
                                                                 '&::after': {
                                                                     content: '""',
                                                                     position: 'absolute',
