@@ -38,8 +38,14 @@ const xlsx = require('xlsx');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Configuración de CORS
+app.use(cors({
+  origin: '*', // Permite peticiones desde cualquier origen
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Métodos permitidos
+  allowedHeaders: ['Content-Type', 'Authorization'] // Headers permitidos
+}));
+
 // Agregar estos middleware ANTES de las rutas
-app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
