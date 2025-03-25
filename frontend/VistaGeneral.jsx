@@ -2094,6 +2094,7 @@ function VistaGeneral() {
                         {[
                             { id: 'datosGenerales', label: 'Datos Generales' },
                             { id: 'transporteMercancias', label: 'Transporte Mercancías' },
+                            { id: 'guias', label: 'Guías' },
                             { id: 'contenedores', label: 'Contenedores' },
                             { id: 'facturas', label: 'Facturas' },
                             { id: 'fechasPedimento', label: 'Fechas Pedimento' },

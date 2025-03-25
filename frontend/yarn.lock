@@ -699,7 +699,7 @@ available-typed-arrays@^1.0.7:
   dependencies:
     possible-typed-array-names "^1.0.0"
 
-axios@^0.21.1:
+axios@^0.21.4:
   version "0.21.4"
   resolved "https://registry.npmjs.org/axios/-/axios-0.21.4.tgz"
   integrity sha512-ut5vewkiu8jjGBdqpM44XxjuCjq9LAKeHVmoVfHVzy8eHgxxq8SbAVQNovDA8mVi05kP0Ea/n/UzcSHcTJQfNg==
@@ -1977,7 +1977,7 @@ react-circular-progressbar@^2.2.0:
     loose-envify "^1.1.0"
     scheduler "^0.23.2"
 
-react-dropzone@^11.3.4:
+react-dropzone@^11.7.1:
   version "11.7.1"
   resolved "https://registry.npmjs.org/react-dropzone/-/react-dropzone-11.7.1.tgz"
   integrity sha512-zxCMwhfPy1olUEbw3FLNPLhAm/HnaYH5aELIEglRbqabizKAdHs0h+WuyOpmA+v1JXn0++fpQDdNfUagWt5hJQ==
