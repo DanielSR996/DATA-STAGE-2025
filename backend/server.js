@@ -40,14 +40,14 @@ const PORT = process.env.PORT || 3000;
 
 // Configuración de CORS
 app.use(cors({
-  origin: '*', // Permite peticiones desde cualquier origen
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Métodos permitidos
-  allowedHeaders: ['Content-Type', 'Authorization'] // Headers permitidos
+  origin: '*', // Permite conexiones desde cualquier origen
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Agregar estos middleware ANTES de las rutas
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ extended: true, limit: '500mb' }));
 
 // Configuración de Multer para guardar archivos temporalmente
 const storage = multer.diskStorage({
@@ -378,7 +378,24 @@ async function verificarFechasUnicas(tableName, row, dateColumns) {
   }
 }
 
-// Endpoint para manejar la subida de archivos
+// Función para verificar si existe el registro en datos generales
+async function verificarDatosGenerales(patente, numeroPedimento, claveSec) {
+  try {
+    const existe = await DatosGenerales.findOne({
+      where: {
+        Patente_Aduanal: patente,
+        Numero_Pedimento: numeroPedimento,
+        Clave_Sec_Aduanera_Despacho: claveSec
+      }
+    });
+    return existe !== null;
+  } catch (error) {
+    console.error('Error al verificar datos generales:', error);
+    return false;
+  }
+}
+
+// Modificar el endpoint de subida
 app.post('/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -388,11 +405,48 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     const zip = new AdmZip(req.file.path);
     const zipEntries = zip.getEntries();
     let isDuplicated = false;
-    const duplicatedFiles = []; // Array para almacenar nombres de archivos duplicados
+    const duplicatedFiles = [];
     let discrepancyDetected = false;
-    const rowsToInsert = []; // Array para almacenar filas a insertar
+    const rowsToInsert = [];
+    const errores = [];
 
+    // Primero, procesar el archivo 501_datos_generales
+    const datosGeneralesEntry = zipEntries.find(entry => entry.entryName.endsWith('_501.asc'));
+    if (datosGeneralesEntry) {
+      const filePath = `uploads/${datosGeneralesEntry.entryName}`;
+      zip.extractEntryTo(datosGeneralesEntry, 'uploads', false, true);
+
+      await new Promise((resolve, reject) => {
+        fs.createReadStream(filePath)
+          .pipe(csvParser({ separator: '|', headers: fileToTable['_501.asc'].columns }))
+          .on('data', async (row) => {
+            try {
+              await DatosGenerales.create(row);
+              console.log('Datos generales insertados:', row);
+            } catch (err) {
+              if (err.name === 'SequelizeUniqueConstraintError') {
+                console.log('Registro duplicado en datos generales:', row);
+              } else {
+                console.error('Error al insertar datos generales:', err);
+                errores.push(`Error en datos generales: ${err.message}`);
+              }
+            }
+          })
+          .on('end', () => {
+            fs.unlinkSync(filePath);
+            resolve();
+          })
+          .on('error', (err) => {
+            console.error('Error al procesar datos generales:', err);
+            reject(err);
+          });
+      });
+    }
+
+    // Luego procesar el resto de archivos
     for (const zipEntry of zipEntries) {
+      if (zipEntry.entryName.endsWith('_501.asc')) continue; // Ya procesado
+
       const fileName = zipEntry.entryName;
       const fileConfig = Object.entries(fileToTable).find(([key]) => fileName.endsWith(key));
 
@@ -412,75 +466,61 @@ app.post('/upload', upload.single('file'), async (req, res) => {
           .pipe(csvParser({ separator: '|', headers: columns }))
           .on('data', async (row) => {
             if (esPrimeraLinea) {
-              esPrimeraLinea = false; // Ignorar la primera línea
+              esPrimeraLinea = false;
               return;
             }
-            dateColumns.forEach((col) => {
-              if (row[col]) {
-                const date = new Date(row[col]);
-                if (!isNaN(date.getTime())) {
-                  row[col] = date;
-                } else {
-                  console.error(`Fecha inválida para la columna ${col}:`, row[col]);
-                  row[col] = null; // O maneja el error de otra manera
-                }
-              }
-            });
 
-            // Verifica si las fechas ya existen
-            const fechasUnicas = await verificarFechasUnicas(tableName, row, dateColumns);
-            if (!fechasUnicas) {
-              isDuplicated = true;
-              if (!duplicatedFiles.includes(fileName)) {
-                duplicatedFiles.push(fileName); // Agrega el nombre del archivo si no está ya en la lista
+            // Verificar si es una tabla que requiere referencia a datos generales
+            if (['Partidas', 'TransporteMercancias', 'Guias', 'Contenedores'].includes(tableName)) {
+              const existe = await verificarDatosGenerales(
+                row.Patente_Aduanal,
+                row.Numero_Pedimento,
+                row.Clave_Sec_Aduanera_Despacho
+              );
+              
+              if (!existe) {
+                console.warn(`Registro sin referencia en datos generales: ${JSON.stringify(row)}`);
+                errores.push(`Registro sin referencia en datos generales: ${row.Numero_Pedimento}`);
+                return;
               }
-              console.log(`Registro duplicado encontrado en la tabla ${tableName}:`, row);
-            } else {
-              // Almacena la fila para inserción posterior
-              rowsToInsert.push({ tableName, row });
+            }
 
-              // Verifica la coincidencia de Total_Fracciones si es la tabla Resumen
-              if (tableName === 'Resumen') {
-                const folio = row.Folio;
-                const totalFraccionesDeclarado = row.Total_Fracciones;
-                const coincide = await verificarTotalFracciones(folio, totalFraccionesDeclarado);
-                if (!coincide) {
-                  discrepancyDetected = true;
-                  console.warn(`Discrepancia detectada en Total_Fracciones para el folio ${folio}.`);
-                }
+            try {
+              await sequelize.models[tableName].create(row);
+              console.log(`Registro insertado en ${tableName}:`, row);
+            } catch (err) {
+              if (err.name === 'SequelizeUniqueConstraintError') {
+                console.log(`Registro duplicado en ${tableName}:`, row);
+              } else {
+                console.error(`Error al insertar en ${tableName}:`, err);
+                errores.push(`Error en ${tableName}: ${err.message}`);
               }
             }
           })
           .on('end', () => {
-            console.log(`Archivo ${zipEntry.entryName} procesado completamente.`);
             fs.unlinkSync(filePath);
             resolve();
           })
           .on('error', (err) => {
-            console.error(`Error al procesar el archivo ${zipEntry.entryName}:`, err);
+            console.error(`Error al procesar ${fileName}:`, err);
             reject(err);
           });
       });
     }
 
-    // Si no hay discrepancias, inserta los datos
-    if (!discrepancyDetected) {
-      for (const { tableName, row } of rowsToInsert) {
-        try {
-          await sequelize.models[tableName].create(row);
-          console.log(`Registro insertado en la tabla ${tableName}:`, row);
-        } catch (err) {
-          console.error(`Error al insertar en la tabla ${tableName}:`, err);
-        }
-      }
-    } else {
-      console.warn('No se insertaron datos debido a discrepancias detectadas.');
-    }
-
-    res.status(200).json({ duplicated: isDuplicated, duplicatedFiles, discrepancy: discrepancyDetected });
+    res.status(200).json({
+      duplicated: isDuplicated,
+      duplicatedFiles,
+      discrepancy: discrepancyDetected,
+      errores: errores
+    });
   } catch (error) {
     console.error('Error al procesar el archivo:', error);
-    res.status(500).send('Error al subir y procesar el archivo.');
+    res.status(500).json({
+      error: 'Error al subir y procesar el archivo.',
+      details: error.message,
+      stack: error.stack
+    });
   }
 });
 
@@ -936,10 +976,14 @@ app.get('/api/vista-general', async (req, res) => {
 
 app.post('/api/exportar-excel', async (req, res) => {
     try {
-        const { fechaInicio, fechaFin, data } = req.body;
+        const { fechaInicio, fechaFin, data, parte, totalPartes } = req.body;
 
-        if (!fechaInicio || !fechaFin || !data) {
-            return res.status(400).json({ error: 'Faltan datos requeridos' });
+        // Validación básica de los datos
+        if (!fechaInicio || !fechaFin || !data || typeof data !== 'object') {
+            return res.status(400).json({ 
+                error: 'Datos inválidos', 
+                message: 'Se requieren fechaInicio, fechaFin y data válidos' 
+            });
         }
 
         // Crear un nuevo libro de Excel
@@ -975,36 +1019,52 @@ app.post('/api/exportar-excel', async (req, res) => {
             resumen: 'Resumen'
         };
 
-        // Convertir cada tabla en una hoja de Excel
-        Object.entries(data).forEach(([nombreTabla, datos]) => {
+        // Procesar cada tabla
+        for (const [nombreTabla, datos] of Object.entries(data)) {
             try {
-                if (Array.isArray(datos)) {
+                if (Array.isArray(datos) && datos.length > 0) {
                     const nombreCorto = nombreHojas[nombreTabla];
                     if (!nombreCorto) {
                         console.warn(`Nombre no encontrado para la tabla: ${nombreTabla}`);
-                        return;
+                        continue;
                     }
+
+                    // Crear una hoja de Excel para los datos
                     const ws = xlsx.utils.json_to_sheet(datos);
-                    xlsx.utils.book_append_sheet(wb, ws, nombreCorto);
+                    const sheetName = parte ? `${nombreCorto}_${parte}` : nombreCorto;
+                    xlsx.utils.book_append_sheet(wb, ws, sheetName);
+
+                    console.log(`Procesada tabla ${nombreTabla} con ${datos.length} registros`);
                 }
             } catch (err) {
                 console.error(`Error al procesar tabla ${nombreTabla}:`, err);
+                continue;
             }
+        }
+
+        // Generar el archivo con opciones optimizadas
+        const buffer = xlsx.write(wb, { 
+            type: 'buffer', 
+            bookType: 'xlsx',
+            compression: true,
+            cellStyles: false,
+            cellDates: true
         });
 
-        // Generar el archivo
-        const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
-
         // Enviar el archivo
+        const fileName = parte ? 
+            `reporte_${fechaInicio}_${fechaFin}_parte${parte}de${totalPartes}.xlsx` :
+            `reporte_${fechaInicio}_${fechaFin}.xlsx`;
+
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=reporte_${fechaInicio}_${fechaFin}.xlsx`);
+        res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
         res.send(buffer);
     } catch (error) {
         console.error('Error completo:', error);
         res.status(500).json({ 
             error: 'Error al exportar a Excel', 
-            details: error.message,
-            stack: error.stack 
+            message: error.message,
+            details: error.stack 
         });
     }
 });
