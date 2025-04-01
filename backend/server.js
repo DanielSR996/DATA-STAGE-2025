@@ -4,6 +4,7 @@ const path = require('path');
 const AdmZip = require('adm-zip');
 const fs = require('fs');
 const csvParser = require('csv-parser');
+const { Sequelize, Op } = require('sequelize');
 const sequelize = require('./config/database');
 const DatosGenerales = require('./models/DatosGenerales');
 const TransporteMercancias = require('./models/TransporteMercancias');
@@ -46,8 +47,8 @@ app.use(cors({
 }));
 
 // Agregar estos middleware ANTES de las rutas
-app.use(express.json({ limit: '500mb' }));
-app.use(express.urlencoded({ extended: true, limit: '500mb' }));
+app.use(express.json({ limit: '10gb' }));
+app.use(express.urlencoded({ extended: true, limit: '10gb' }));
 
 // Configuración de Multer para guardar archivos temporalmente
 const storage = multer.diskStorage({
@@ -61,6 +62,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 * 1024 // 10GB
+  },
   fileFilter: (req, file, cb) => {
     if (path.extname(file.originalname) !== '.zip') {
       return cb(new Error('Solo se permiten archivos ZIP'));
@@ -306,35 +310,8 @@ const fileToTable = {
     await sequelize.authenticate();
     console.log('Conexión a la base de datos establecida con éxito.');
 
-    DatosGenerales.init(sequelize);
-    TransporteMercancias.init(sequelize);
-    Guias.init(sequelize);
-    Contenedores.init(sequelize);
-    Facturas.init(sequelize);
-    FechasPedimento.init(sequelize);
-    CasosPedimento.init(sequelize);
-    CuentasAduanerasGarantiaPedimento.init(sequelize);
-    TasasPedimento.init(sequelize);
-    ContribucionesPedimento.init(sequelize);
-    ObservacionesPedimento.init(sequelize);
-    DescargosMercancias.init(sequelize);
-    DestinatariosMercancia.init(sequelize);
-    Partidas.init(sequelize);
-    Mercancias.init(sequelize);
-    PermisoPartida.init(sequelize);
-    CasosPartida.init(sequelize);
-    CuentasAduanerasGarantiaPartida.init(sequelize);
-    TasasContribucionesPartida.init(sequelize);
-    ContribucionesPartida.init(sequelize);
-    ObservacionesPartida.init(sequelize);
-    Rectificaciones.init(sequelize);
-    DiferenciasContribucionesPedimento.init(sequelize);
-    IncidenciasReconocimientoAduanero.init(sequelize);
-    SeleccionAutomatizada.init(sequelize);
-    Resumen.init(sequelize);
-
-    // Sincroniza los modelos con la base de datos
-    await sequelize.sync();
+    // Sincronizar los modelos con la base de datos
+    await sequelize.sync({ alter: false }); // Evitar alteraciones automáticas
     console.log('Modelos sincronizados con la base de datos.');
   } catch (error) {
     console.error('No se pudo conectar a la base de datos:', error);
@@ -346,7 +323,11 @@ async function verificarTotalFracciones(folio, totalFraccionesDeclarado) {
   try {
     // Calcula el total de fracciones en la tabla 551_Partidas para el folio dado
     const totalFraccionesCalculado = await sequelize.models.Partidas.count({
-      where: { Folio: folio }
+      where: { 
+        Patente_Aduanal: folio.substring(0, 4),
+        Numero_Pedimento: folio.substring(4, 11),
+        Clave_Sec_Aduanera_Despacho: folio.substring(11, 14)
+      }
     });
 
     if (totalFraccionesCalculado !== totalFraccionesDeclarado) {
@@ -395,58 +376,81 @@ async function verificarDatosGenerales(patente, numeroPedimento, claveSec) {
   }
 }
 
+// Función para procesar datos en lotes
+async function procesarLote(modelo, datos, tamanoLote = 100, duplicados) {
+  try {
+    console.log(`\n📦 Iniciando procesamiento de ${datos.length} registros para ${modelo.name}`);
+    console.log(`⚙️ Tamaño de lote: ${tamanoLote}`);
+
+    const lotes = [];
+    for (let i = 0; i < datos.length; i += tamanoLote) {
+      lotes.push(datos.slice(i, i + tamanoLote));
+    }
+
+    console.log(`📑 Total de lotes a procesar: ${lotes.length}`);
+    let totalRegistrosProcesados = 0;
+
+    for (let i = 0; i < lotes.length; i++) {
+      const lote = lotes[i];
+      console.log(`\n🔄 Procesando lote ${i + 1}/${lotes.length} para ${modelo.name}`);
+      console.log(`📊 Registros en este lote: ${lote.length}`);
+
+      const inicio = Date.now();
+
+      // Insertar todos los registros sin verificar duplicados
+      const resultado = await modelo.bulkCreate(lote, {
+        ignoreDuplicates: false,
+        validate: false,
+        hooks: false,
+        individualHooks: false,
+        returning: false
+      });
+      
+      totalRegistrosProcesados += resultado.length;
+      
+      const fin = Date.now();
+      const porcentaje = ((i + 1) / lotes.length * 100).toFixed(2);
+      console.log(`\n✅ Lote ${i + 1} completado en ${(fin - inicio) / 1000} segundos`);
+      console.log(`📈 Progreso: ${porcentaje}%`);
+      console.log(`📊 Resumen del lote:`);
+      console.log(`   - Total: ${lote.length}`);
+      console.log(`   - Procesados: ${resultado.length}`);
+    }
+
+    console.log(`\n🎉 Procesamiento completado para ${modelo.name}`);
+    console.log(`📊 Resumen final:`);
+    console.log(`   - Total de registros procesados: ${totalRegistrosProcesados}`);
+
+    return { success: true, totalRegistrosProcesados, totalRegistrosIgnorados: 0 };
+  } catch (error) {
+    console.error(`\n❌ Error al procesar lote para ${modelo.name}:`, error);
+    return { success: false, error };
+  }
+}
+
 // Modificar el endpoint de subida
 app.post('/upload', upload.single('file'), async (req, res) => {
   try {
+    console.log('\n🚀 Iniciando proceso de carga de archivo');
+    
     if (!req.file) {
+      console.error('❌ No se ha subido ningún archivo');
       return res.status(400).send('No se ha subido ningún archivo.');
     }
 
+    console.log('📁 Archivo recibido:', req.file.originalname);
     const zip = new AdmZip(req.file.path);
     const zipEntries = zip.getEntries();
-    let isDuplicated = false;
-    const duplicatedFiles = [];
-    let discrepancyDetected = false;
-    const rowsToInsert = [];
+    console.log(`📚 Número de archivos en el ZIP: ${zipEntries.length}`);
+
     const errores = [];
+    const datosAInsertar = new Map();
+    const duplicados = new Map();
+    let totalRegistrosProcesados = 0;
+    let totalRegistrosIgnorados = 0;
 
-    // Primero, procesar el archivo 501_datos_generales
-    const datosGeneralesEntry = zipEntries.find(entry => entry.entryName.endsWith('_501.asc'));
-    if (datosGeneralesEntry) {
-      const filePath = `uploads/${datosGeneralesEntry.entryName}`;
-      zip.extractEntryTo(datosGeneralesEntry, 'uploads', false, true);
-
-      await new Promise((resolve, reject) => {
-        fs.createReadStream(filePath)
-          .pipe(csvParser({ separator: '|', headers: fileToTable['_501.asc'].columns }))
-          .on('data', async (row) => {
-            try {
-              await DatosGenerales.create(row);
-              console.log('Datos generales insertados:', row);
-            } catch (err) {
-              if (err.name === 'SequelizeUniqueConstraintError') {
-                console.log('Registro duplicado en datos generales:', row);
-              } else {
-                console.error('Error al insertar datos generales:', err);
-                errores.push(`Error en datos generales: ${err.message}`);
-              }
-            }
-          })
-          .on('end', () => {
-            fs.unlinkSync(filePath);
-            resolve();
-          })
-          .on('error', (err) => {
-            console.error('Error al procesar datos generales:', err);
-            reject(err);
-          });
-      });
-    }
-
-    // Luego procesar el resto de archivos
+    // Primero recolectar todos los datos
     for (const zipEntry of zipEntries) {
-      if (zipEntry.entryName.endsWith('_501.asc')) continue; // Ya procesado
-
       const fileName = zipEntry.entryName;
       const fileConfig = Object.entries(fileToTable).find(([key]) => fileName.endsWith(key));
 
@@ -455,71 +459,94 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         continue;
       }
 
-      const { tableName, columns, dateColumns } = fileConfig[1];
+      const { tableName, columns } = fileConfig[1];
       const filePath = `uploads/${zipEntry.entryName}`;
       zip.extractEntryTo(zipEntry, 'uploads', false, true);
 
-      let esPrimeraLinea = true;
-
+      const datos = [];
       await new Promise((resolve, reject) => {
         fs.createReadStream(filePath)
-          .pipe(csvParser({ separator: '|', headers: columns }))
-          .on('data', async (row) => {
-            if (esPrimeraLinea) {
-              esPrimeraLinea = false;
-              return;
-            }
-
-            // Verificar si es una tabla que requiere referencia a datos generales
-            if (['Partidas', 'TransporteMercancias', 'Guias', 'Contenedores'].includes(tableName)) {
-              const existe = await verificarDatosGenerales(
-                row.Patente_Aduanal,
-                row.Numero_Pedimento,
-                row.Clave_Sec_Aduanera_Despacho
-              );
-              
-              if (!existe) {
-                console.warn(`Registro sin referencia en datos generales: ${JSON.stringify(row)}`);
-                errores.push(`Registro sin referencia en datos generales: ${row.Numero_Pedimento}`);
-                return;
-              }
-            }
-
-            try {
-              await sequelize.models[tableName].create(row);
-              console.log(`Registro insertado en ${tableName}:`, row);
-            } catch (err) {
-              if (err.name === 'SequelizeUniqueConstraintError') {
-                console.log(`Registro duplicado en ${tableName}:`, row);
-              } else {
-                console.error(`Error al insertar en ${tableName}:`, err);
-                errores.push(`Error en ${tableName}: ${err.message}`);
-              }
-            }
-          })
+          .pipe(csvParser({ 
+            separator: '|', 
+            headers: columns,
+            skipLines: 1
+          }))
+          .on('data', (row) => datos.push(row))
           .on('end', () => {
             fs.unlinkSync(filePath);
             resolve();
           })
-          .on('error', (err) => {
-            console.error(`Error al procesar ${fileName}:`, err);
-            reject(err);
-          });
+          .on('error', reject);
       });
+
+      datosAInsertar.set(tableName, datos);
+    }
+
+    // Procesar datos generales primero
+    if (datosAInsertar.has('DatosGenerales')) {
+      const resultado = await procesarLote(DatosGenerales, datosAInsertar.get('DatosGenerales'), 100, duplicados);
+      if (!resultado.success) {
+        errores.push('Error al procesar datos generales');
+      } else {
+        totalRegistrosProcesados += resultado.totalRegistrosProcesados;
+        totalRegistrosIgnorados += resultado.totalRegistrosIgnorados;
+      }
+    }
+
+    // Procesar el resto de las tablas
+    for (const [tableName, datos] of datosAInsertar) {
+      if (tableName === 'DatosGenerales') continue;
+
+      const modelo = sequelize.models[tableName];
+      if (!modelo) {
+        errores.push(`Modelo no encontrado para ${tableName}`);
+        continue;
+      }
+
+      const resultado = await procesarLote(modelo, datos, 100, duplicados);
+      if (!resultado.success) {
+        errores.push(`Error al procesar ${tableName}`);
+      } else {
+        totalRegistrosProcesados += resultado.totalRegistrosProcesados;
+        totalRegistrosIgnorados += resultado.totalRegistrosIgnorados;
+      }
+    }
+
+    // Verificar Total_Fracciones
+    const resumen = datosAInsertar.get('Resumen');
+    if (resumen && resumen.length > 0) {
+      const totalFraccionesCoincide = await verificarTotalFracciones(
+        resumen[0].Folio,
+        parseInt(resumen[0].Total_Fracciones)
+      );
+      
+      if (!totalFraccionesCoincide) {
+        errores.push('El Total_Fracciones no coincide con los datos procesados');
+      }
     }
 
     res.status(200).json({
-      duplicated: isDuplicated,
-      duplicatedFiles,
-      discrepancy: discrepancyDetected,
-      errores: errores
+      mensaje: errores.length === 0 ? 'Archivo procesado con éxito' : 'Archivo procesado con advertencias',
+      errores: errores,
+      duplicados: Object.fromEntries(duplicados),
+      duplicated: duplicados.size > 0,
+      duplicatedFiles: Array.from(duplicados.entries()).map(([tabla, registros]) => ({
+        tabla,
+        registros: registros.map(registro => ({
+          Patente_Aduanal: registro.Patente_Aduanal,
+          Numero_Pedimento: registro.Numero_Pedimento,
+          Clave_Sec_Aduanera_Despacho: registro.Clave_Sec_Aduanera_Despacho
+        }))
+      })),
+      totalRegistros: Array.from(datosAInsertar.values()).reduce((acc, datos) => acc + datos.length, 0),
+      registrosProcesados: totalRegistrosProcesados,
+      registrosIgnorados: totalRegistrosIgnorados
     });
   } catch (error) {
-    console.error('Error al procesar el archivo:', error);
+    console.error('❌ Error al procesar el archivo:', error);
     res.status(500).json({
-      error: 'Error al subir y procesar el archivo.',
-      details: error.message,
-      stack: error.stack
+      error: 'Error al procesar el archivo',
+      detalles: error.message
     });
   }
 });
