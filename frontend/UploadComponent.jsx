@@ -41,7 +41,7 @@ const UploadComponent = () => {
     })
     .then((response) => {
       if (response.data.duplicated) {
-        setMessage('Algunos archivos ya han sido subidos anteriormente.');
+        setMessage('Se encontraron registros duplicados en el archivo.');
         setMessageType('warning');
         setDuplicatedFiles(response.data.duplicatedFiles);
       } else {
@@ -156,12 +156,31 @@ const UploadComponent = () => {
       )}
       {duplicatedFiles.length > 0 && (
         <Alert severity="warning" sx={{ marginTop: '20px' }}>
-          <Typography variant="body1">Archivos duplicados:</Typography>
-          <ul>
-            {duplicatedFiles.map((file, index) => (
-              <li key={index}>{file}</li>
-            ))}
-          </ul>
+          <Typography variant="body1">Registros duplicados encontrados:</Typography>
+          {duplicatedFiles.map(({ tabla, registros }, index) => (
+            <Box key={index} sx={{ mt: 2 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                Tabla: {tabla}
+              </Typography>
+              <Typography variant="body2" sx={{ ml: 2 }}>
+                {registros.length} registros duplicados
+              </Typography>
+              <Box sx={{ ml: 4 }}>
+                {registros.slice(0, 3).map((registro, idx) => (
+                  <Typography key={idx} variant="body2">
+                    • Patente: {registro.Patente_Aduanal}, 
+                    Pedimento: {registro.Numero_Pedimento}, 
+                    Clave: {registro.Clave_Sec_Aduanera_Despacho}
+                  </Typography>
+                ))}
+                {registros.length > 3 && (
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    ... y {registros.length - 3} más
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          ))}
         </Alert>
       )}
       {discrepancyAlert && (

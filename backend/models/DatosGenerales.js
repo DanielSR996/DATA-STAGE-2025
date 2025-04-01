@@ -132,9 +132,9 @@ DatosGenerales.init({
     allowNull: true,
   },
 }, {
-  sequelize,
+  sequelize: sequelize,
   modelName: 'DatosGenerales',
-  tableName: '501_Datos_generales',
+  tableName: '501_datos_generales',
   timestamps: false,
 });
 
