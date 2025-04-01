@@ -439,6 +439,50 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     console.log('📁 Archivo recibido:', req.file.originalname);
+    
+    // Verificar si el archivo ya existe en la carpeta uploads
+    const archivosExistentes = fs.readdirSync('uploads/');
+    const archivoExiste = archivosExistentes.some(archivo => {
+      const rutaArchivoExistente = path.join('uploads', archivo);
+      const rutaArchivoNuevo = req.file.path;
+      
+      // Comparar tamaños y fechas de modificación
+      const statsExistente = fs.statSync(rutaArchivoExistente);
+      const statsNuevo = fs.statSync(rutaArchivoNuevo);
+      
+      return statsExistente.size === statsNuevo.size && 
+             statsExistente.mtimeMs === statsNuevo.mtimeMs;
+    });
+
+    // Si el archivo existe y no es una subida forzada
+    if (archivoExiste && !req.headers['x-force-upload']) {
+      return res.status(409).json({
+        archivoExiste: true,
+        mensaje: 'El archivo ya existe en el servidor',
+        nombreArchivo: req.file.originalname
+      });
+    }
+
+    // Si es una subida forzada, eliminar el archivo existente
+    if (archivoExiste && req.headers['x-force-upload']) {
+      const archivoExistente = archivosExistentes.find(archivo => {
+        const rutaArchivoExistente = path.join('uploads', archivo);
+        const rutaArchivoNuevo = req.file.path;
+        
+        const statsExistente = fs.statSync(rutaArchivoExistente);
+        const statsNuevo = fs.statSync(rutaArchivoNuevo);
+        
+        return statsExistente.size === statsNuevo.size && 
+               statsExistente.mtimeMs === statsNuevo.mtimeMs;
+      });
+      
+      if (archivoExistente) {
+        const rutaArchivoExistente = path.join('uploads', archivoExistente);
+        fs.unlinkSync(rutaArchivoExistente);
+        console.log('🗑️ Archivo existente eliminado para permitir la subida forzada');
+      }
+    }
+
     const zip = new AdmZip(req.file.path);
     const zipEntries = zip.getEntries();
     console.log(`📚 Número de archivos en el ZIP: ${zipEntries.length}`);

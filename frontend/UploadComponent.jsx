@@ -8,6 +8,11 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Container from '@mui/material/Container';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogActions from '@mui/material/DialogActions';
 
 const UploadComponent = () => {
   const [progress, setProgress] = useState(0);
@@ -20,6 +25,9 @@ const UploadComponent = () => {
   const [duplicatedFiles, setDuplicatedFiles] = useState([]);
   const [discrepancyAlert, setDiscrepancyAlert] = useState('');
   const [matchAlert, setMatchAlert] = useState('');
+  const [archivoExistente, setArchivoExistente] = useState(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [archivoPendiente, setArchivoPendiente] = useState(null);
 
   const onDrop = (acceptedFiles) => {
     setIsUploading(true);
@@ -27,8 +35,12 @@ const UploadComponent = () => {
     setDuplicatedFiles([]);
     setDiscrepancyAlert('');
     setMatchAlert('');
+    setArchivoExistente(null);
+    setShowConfirmDialog(false);
+    
     const formData = new FormData();
     formData.append('file', acceptedFiles[0]);
+    setArchivoPendiente(formData);
 
     axios.post('http://localhost:3000/upload', formData, {
       headers: {
@@ -40,7 +52,12 @@ const UploadComponent = () => {
       },
     })
     .then((response) => {
-      if (response.data.duplicated) {
+      if (response.data.archivoExiste) {
+        setArchivoExistente(response.data);
+        setShowConfirmDialog(true);
+        setMessage('El archivo ya existe en el servidor');
+        setMessageType('warning');
+      } else if (response.data.duplicated) {
         setMessage('Se encontraron registros duplicados en el archivo.');
         setMessageType('warning');
         setDuplicatedFiles(response.data.duplicatedFiles);
@@ -57,14 +74,52 @@ const UploadComponent = () => {
 
       setProgress(0);
     })
-    .catch(() => {
-      setMessage('Error al subir el archivo');
-      setMessageType('error');
+    .catch((error) => {
+      if (error.response && error.response.status === 409) {
+        setArchivoExistente(error.response.data);
+        setShowConfirmDialog(true);
+        setMessage('El archivo ya existe en el servidor');
+        setMessageType('warning');
+      } else {
+        setMessage('Error al subir el archivo');
+        setMessageType('error');
+      }
       setProgress(0);
     })
     .finally(() => {
       setIsUploading(false);
     });
+  };
+
+  const handleConfirmUpload = async () => {
+    if (archivoPendiente) {
+      setIsUploading(true);
+      setShowConfirmDialog(false);
+      
+      try {
+        const response = await axios.post('http://localhost:3000/upload', archivoPendiente, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'X-Force-Upload': 'true'
+          }
+        });
+        
+        setMessage('Archivo subido con éxito');
+        setMessageType('success');
+      } catch (error) {
+        setMessage('Error al subir el archivo');
+        setMessageType('error');
+      } finally {
+        setIsUploading(false);
+        setArchivoPendiente(null);
+      }
+    }
+  };
+
+  const handleCancelUpload = () => {
+    setShowConfirmDialog(false);
+    setArchivoExistente(null);
+    setArchivoPendiente(null);
   };
 
   const { getRootProps, getInputProps } = useDropzone({ onDrop, accept: '.zip' });
@@ -194,6 +249,24 @@ const UploadComponent = () => {
         </Alert>
       )}
       <Button variant="contained" color="primary" sx={{ marginTop: '20px' }} onClick={handleUpload}>Subir Archivos</Button>
+
+      {showConfirmDialog && archivoExistente && (
+        <Dialog open={showConfirmDialog} onClose={handleCancelUpload}>
+          <DialogTitle>Archivo Existente</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              El archivo "{archivoExistente.nombreArchivo}" ya existe en el servidor.
+              ¿Desea continuar con la subida?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCancelUpload}>Cancelar</Button>
+            <Button onClick={handleConfirmUpload} color="primary" variant="contained">
+              Continuar
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Container>
   );
 };
