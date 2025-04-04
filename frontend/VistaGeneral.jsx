@@ -56,6 +56,11 @@
             key: null,
             direction: 'asc'
         });
+        const [universoImmex, setUniversoImmex] = useState([]);
+        const [page, setPage] = useState(1);
+        const [hasMore, setHasMore] = useState(true);
+        const [isLoading, setIsLoading] = useState(false);
+        const [totalRecords, setTotalRecords] = useState(0);
 
         useEffect(() => {
             fetch('http://localhost:3000/api/vista-general')
@@ -90,6 +95,7 @@
                     setResumen(data.resumen || []);
                     setSeleccionAutomatizada(data.seleccionAutomatizada || []);
                     setIdentificadoresPedimento(data.identificadoresPedimento || []);
+                    setUniversoImmex(data.universoImmex || []);
                 })
                 .catch(error => console.error('Error al cargar los datos:', error));
         }, []);
@@ -1615,11 +1621,175 @@
                 }
             ];
 
+            const universoImmexColumns = [
+                { 
+                    Header: 'Patente Aduanal',
+                    accessor: 'Patente_Aduanal',
+                    width: 120
+                },
+                { 
+                    Header: 'Número Pedimento',
+                    accessor: 'Numero_Pedimento',
+                    width: 150
+                },
+                { 
+                    Header: 'Clave Sec Aduanera Despacho',
+                    accessor: 'Clave_Sec_Aduanera_Despacho',
+                    width: 200
+                },
+                { 
+                    Header: 'Fracción Arancelaria',
+                    accessor: 'Fraccion_Arancelaria',
+                    width: 150
+                },
+                { 
+                    Header: 'Secuencia Fracción',
+                    accessor: 'Secuencia_Fraccion_Arancelaria',
+                    width: 150
+                },
+                { 
+                    Header: 'Subdivisión Fracción',
+                    accessor: 'Subdivision_Fraccion_Arancelaria',
+                    width: 150
+                },
+                { 
+                    Header: 'Descripción Mercancía',
+                    accessor: 'Descripcion_Mercancia',
+                    width: 300,
+                    Cell: ({ value }) => (
+                        <div style={{ 
+                            whiteSpace: 'normal',
+                            wordBreak: 'break-word'
+                        }}>
+                            {value}
+                        </div>
+                    )
+                },
+                { 
+                    Header: 'Precio Unitario',
+                    accessor: 'Precio_Unitario',
+                    width: 120
+                },
+                { 
+                    Header: 'Valor Aduana',
+                    accessor: 'Valor_Aduana',
+                    width: 120
+                },
+                { 
+                    Header: 'Valor Comercial',
+                    accessor: 'Valor_Comercial',
+                    width: 120
+                },
+                { 
+                    Header: 'Valor Dólares',
+                    accessor: 'Valor_Dolares',
+                    width: 120
+                },
+                { 
+                    Header: 'Cantidad Mercancías',
+                    accessor: 'Cantidad_Mercancias_Unidad_Medida_Comercial',
+                    width: 150
+                },
+                { 
+                    Header: 'Unidad Medida Comercial',
+                    accessor: 'Clave_Unidad_Medida_Comercial',
+                    width: 180
+                },
+                { 
+                    Header: 'Cantidad Mercancía Tarifa',
+                    accessor: 'Cantidad_Mercancia_Unidad_Medida_Tarifa',
+                    width: 180
+                },
+                { 
+                    Header: 'Unidad Medida Tarifa',
+                    accessor: 'Clave_Unidad_Medida_Tarifa',
+                    width: 150
+                },
+                { 
+                    Header: 'Valor Agregado',
+                    accessor: 'Valor_Agregado',
+                    width: 120
+                },
+                { 
+                    Header: 'Vinculación',
+                    accessor: 'Clave_Vinculacion',
+                    width: 120
+                },
+                { 
+                    Header: 'Método Valorización',
+                    accessor: 'Clave_Metodo_Valorizacion',
+                    width: 150
+                },
+                { 
+                    Header: 'Código Producto',
+                    accessor: 'Codigo_Mercancia_Producto',
+                    width: 150
+                },
+                { 
+                    Header: 'Marca',
+                    accessor: 'Marca_Mercancia_Producto',
+                    width: 150
+                },
+                { 
+                    Header: 'Modelo',
+                    accessor: 'Modelo_Mercancia_Producto',
+                    width: 150
+                },
+                { 
+                    Header: 'País Origen/Destino',
+                    accessor: 'Clave_Pais_Origen_Destino',
+                    width: 150
+                },
+                { 
+                    Header: 'País Comprador/Vendedor',
+                    accessor: 'Clave_Pais_Comprador_Vendedor',
+                    width: 180
+                },
+                { 
+                    Header: 'Entidad Fed. Origen',
+                    accessor: 'Clave_Entidad_Federativa_Origen',
+                    width: 150
+                },
+                { 
+                    Header: 'Entidad Fed. Destino',
+                    accessor: 'Clave_Entidad_Federativa_Destino',
+                    width: 150
+                },
+                { 
+                    Header: 'Entidad Fed. Comprador',
+                    accessor: 'Clave_Entidad_Federativa_Comprador',
+                    width: 180
+                },
+                { 
+                    Header: 'Entidad Fed. Vendedor',
+                    accessor: 'Clave_Entidad_Federativa_Vendedor',
+                    width: 180
+                },
+                { 
+                    Header: 'Tipo Operación',
+                    accessor: 'Clave_Tipo_Operacion',
+                    width: 120
+                },
+                { 
+                    Header: 'Documento',
+                    accessor: 'Clave_Documento',
+                    width: 120
+                },
+                { 
+                    Header: 'Fecha Pago Real',
+                    accessor: 'Fecha_Pago_Real',
+                    Cell: ({ value }) => value ? new Date(value).toLocaleString() : '-',
+                    width: 180
+                }
+            ];
+
             switch (activeTab) {
-                case 'guias':
-                    return guiasColumns;
+                case 'datosGenerales':
+                    return datosGeneralesColumns;
                 case 'transporteMercancias':
                     return transporteColumns;
+                case 'guias':
+                    return guiasColumns;
                 case 'contenedores':
                     return contenedoresColumns;
                 case 'facturas':
@@ -1666,7 +1836,8 @@
                     return resumenColumns;
                 case 'seleccionAutomatizada':
                     return seleccionAutomatizadaColumns;
-                case 'datosGenerales':
+                case 'universoImmex':
+                    return universoImmexColumns;
                 default:
                     return datosGeneralesColumns;
             }
@@ -1753,6 +1924,9 @@
                 case 'seleccionAutomatizada':
                     data = seleccionAutomatizada;
                     break;
+                case 'universoImmex':
+                    data = universoImmex;
+                    break;
                 default:
                     data = datosGenerales;
             }
@@ -1796,7 +1970,8 @@
             diferenciasContribucionesPedimento,
             incidenciasReconocimientoAduanero,
             resumen,
-            seleccionAutomatizada
+            seleccionAutomatizada,
+            universoImmex
         ]);
 
         const filteredData = useMemo(() => {
@@ -2057,6 +2232,67 @@
             }
         };
 
+        const loadMoreData = async () => {
+            if (isLoading || !hasMore) return;
+            
+            setIsLoading(true);
+            try {
+                const response = await fetch(`http://localhost:3000/api/vista-general?page=${page}&limit=50`);
+                const data = await response.json();
+                
+                if (data.datosGenerales.length === 0) {
+                    setHasMore(false);
+                    return;
+                }
+
+                setDatosGenerales(prev => [...prev, ...data.datosGenerales]);
+                setTransporteMercancias(prev => [...prev, ...data.transporteMercancias]);
+                setGuias(prev => [...prev, ...data.guias]);
+                setContenedores(prev => [...prev, ...data.contenedores]);
+                setFacturas(prev => [...prev, ...data.facturas]);
+                setFechasPedimento(prev => [...prev, ...data.fechasPedimento]);
+                setCasosPedimento(prev => [...prev, ...data.casosPedimento]);
+                setCuentasAduanerasGarantiaPedimento(prev => [...prev, ...data.cuentasAduanerasGarantiaPedimento]);
+                setTasasPedimento(prev => [...prev, ...data.tasasPedimento]);
+                setContribucionesPedimento(prev => [...prev, ...data.contribucionesPedimento]);
+                setObservacionesPedimento(prev => [...prev, ...data.observacionesPedimento]);
+                setDescargosMercancias(prev => [...prev, ...data.descargosMercancias]);
+                setDestinatariosMercancia(prev => [...prev, ...data.destinatariosMercancia]);
+                setPartidas(prev => [...prev, ...data.partidas]);
+                setMercancias(prev => [...prev, ...data.mercancias]);
+                setPermisosPartida(prev => [...prev, ...data.permisosPartida]);
+                setCasosPartida(prev => [...prev, ...data.casosPartida]);
+                setCuentasAduanerasGarantiaPartida(prev => [...prev, ...data.cuentasAduanerasGarantiaPartida]);
+                setTasasContribucionesPartida(prev => [...prev, ...data.tasasContribucionesPartida]);
+                setContribucionesPartida(prev => [...prev, ...data.contribucionesPartida]);
+                setObservacionesPartida(prev => [...prev, ...data.observacionesPartida]);
+                setRectificaciones(prev => [...prev, ...data.rectificaciones]);
+                setDiferenciasContribucionesPedimento(prev => [...prev, ...data.diferenciasContribucionesPedimento]);
+                setIncidenciasReconocimientoAduanero(prev => [...prev, ...data.incidenciasReconocimientoAduanero]);
+                setSeleccionAutomatizada(prev => [...prev, ...data.seleccionAutomatizada]);
+                setResumen(prev => [...prev, ...data.resumen]);
+                setUniversoImmex(prev => [...prev, ...data.universoImmex]);
+                
+                setTotalRecords(data.pagination.total);
+                setPage(prev => prev + 1);
+            } catch (error) {
+                console.error('Error al cargar más datos:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        useEffect(() => {
+            loadMoreData();
+        }, []);
+
+        const handleScroll = (e) => {
+            const { scrollTop, clientHeight, scrollHeight } = e.target;
+            if (scrollHeight - scrollTop <= clientHeight + 100 && !isLoading && hasMore) {
+                loadMoreData();
+            }
+        };
+
         return (
             <Box sx={{ 
                 flexGrow: 1,
@@ -2217,7 +2453,8 @@
                                 { id: 'diferenciasContribucionesPedimento', label: 'Diferencias Contribuciones' },
                                 { id: 'incidenciasReconocimientoAduanero', label: 'Incidencias Reconocimiento' },
                                 { id: 'resumen', label: 'Resumen' },
-                                { id: 'seleccionAutomatizada', label: 'Selección Automatizada' }
+                                { id: 'seleccionAutomatizada', label: 'Selección Automatizada' },
+                                { id: 'universoImmex', label: 'Universo IMMEX' }
                             ].map(tab => (
                                 <button 
                                     key={tab.id}
@@ -2265,9 +2502,9 @@
                                 '& .MuiTable-root': {
                                     borderCollapse: 'separate'
                                 },
-                                // Asegurar que el scroll funcione correctamente
                                 position: 'relative'
                             }}
+                            onScroll={handleScroll}
                         >
                             <Table stickyHeader>
                                 <TableHead>
@@ -2338,52 +2575,50 @@
                                                     }
                                                 }}
                                             >
-                                                {row.cells
-                                                    .sort((a, b) => {
-                                                        const aIndex = columnOrder.indexOf(a.column.id);
-                                                        const bIndex = columnOrder.indexOf(b.column.id);
-                                                        if (aIndex === -1 && bIndex === -1) return 0;
-                                                        if (aIndex === -1) return -1;
-                                                        if (bIndex === -1) return 1;
-                                                        return aIndex - bIndex;
-                                                    })
-                                                    .map((cell, index) => (
-                                                        <TableCell
-                                                            {...cell.getCellProps()}
-                                                            sx={{
-                                                                padding: '8px 16px',
-                                                                whiteSpace: 'normal',
-                                                                wordBreak: 'break-word',
-                                                                maxWidth: cell.column.width || '200px',
-                                                                position: index === 0 ? 'sticky' : 'static',
-                                                                left: index === 0 ? 0 : 'auto',
-                                                                zIndex: index === 0 ? 2 : 1,
-                                                                backgroundColor: index === 0 
-                                                                    ? row.index % 2 === 0 
-                                                                        ? '#ffffff !important' 
-                                                                        : '#f7f7f7 !important'
-                                                                    : 'inherit',
-                                                                ...(index === 0 && {
-                                                                    borderRight: '1px solid rgba(224, 224, 224, 1)',
-                                                                    '&::after': {
-                                                                        content: '""',
-                                                                        position: 'absolute',
-                                                                        right: 0,
-                                                                        top: 0,
-                                                                        bottom: 0,
-                                                                        width: '4px',
-                                                                        boxShadow: '4px 0 4px rgba(0,0,0,0.1)',
-                                                                        pointerEvents: 'none'
-                                                                    }
-                                                                })
-                                                            }}
-                                                        >
-                                                            {cell.render('Cell')}
-                                                        </TableCell>
-                                                    ))}
+                                                {row.cells.map((cell, index) => (
+                                                    <TableCell
+                                                        {...cell.getCellProps()}
+                                                        sx={{
+                                                            ...cell.getCellProps().style,
+                                                            ...(index === 0 && {
+                                                                borderRight: '1px solid rgba(224, 224, 224, 1)',
+                                                                '&::after': {
+                                                                    content: '""',
+                                                                    position: 'absolute',
+                                                                    right: 0,
+                                                                    top: 0,
+                                                                    bottom: 0,
+                                                                    width: '4px',
+                                                                    boxShadow: '4px 0 4px rgba(0,0,0,0.1)',
+                                                                    pointerEvents: 'none'
+                                                                }
+                                                            })
+                                                        }}
+                                                    >
+                                                        {cell.render('Cell')}
+                                                    </TableCell>
+                                                ))}
                                             </TableRow>
                                         );
                                     })}
+                                    {isLoading && (
+                                        <TableRow>
+                                            <TableCell colSpan={100} align="center">
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Cargando más registros...
+                                                </Typography>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                    {!hasMore && rows.length > 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={100} align="center">
+                                                <Typography variant="body2" color="text.secondary">
+                                                    No hay más registros para mostrar
+                                                </Typography>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
                                 </TableBody>
                             </Table>
                         </TableContainer>
