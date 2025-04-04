@@ -34,6 +34,8 @@ const IncidenciasReconocimientoAduanero = require('./models/IncidenciasReconocim
 const SeleccionAutomatizada = require('./models/SeleccionAutomatizada');
 const Resumen = require('./models/Resumen');
 const xlsx = require('xlsx');
+const UniversoImmex = require('./models/UniversoImmex');
+const compression = require('compression');
 // Importa otros modelos según sea necesario
 
 const app = express();
@@ -49,6 +51,7 @@ app.use(cors({
 // Agregar estos middleware ANTES de las rutas
 app.use(express.json({ limit: '10gb' }));
 app.use(express.urlencoded({ extended: true, limit: '10gb' }));
+app.use(compression());
 
 // Configuración de Multer para guardar archivos temporalmente
 const storage = multer.diskStorage({
@@ -428,6 +431,32 @@ async function procesarLote(modelo, datos, tamanoLote = 100, duplicados) {
   }
 }
 
+// Función para procesar datos en ambas tablas
+async function procesarPartidasEnAmbasTablas(datos, tamanoLote = 100, duplicados) {
+  try {
+    console.log('\n🔄 Iniciando procesamiento simultáneo en ambas tablas');
+    
+    // Procesar en 551_Partidas
+    const resultadoPartidas = await procesarLote(Partidas, datos, tamanoLote, duplicados);
+    
+    // Procesar en universo_immex
+    const resultadoImmex = await procesarLote(UniversoImmex, datos, tamanoLote, duplicados);
+    
+    if (!resultadoPartidas.success || !resultadoImmex.success) {
+      throw new Error('Error al procesar en alguna de las tablas');
+    }
+    
+    return {
+      success: true,
+      totalRegistrosProcesados: resultadoPartidas.totalRegistrosProcesados,
+      totalRegistrosIgnorados: 0
+    };
+  } catch (error) {
+    console.error('\n❌ Error al procesar en ambas tablas:', error);
+    return { success: false, error };
+  }
+}
+
 // Modificar el endpoint de subida
 app.post('/upload', upload.single('file'), async (req, res) => {
   try {
@@ -439,6 +468,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     console.log('📁 Archivo recibido:', req.file.originalname);
+    
     const zip = new AdmZip(req.file.path);
     const zipEntries = zip.getEntries();
     console.log(`📚 Número de archivos en el ZIP: ${zipEntries.length}`);
@@ -497,18 +527,29 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     for (const [tableName, datos] of datosAInsertar) {
       if (tableName === 'DatosGenerales') continue;
 
-      const modelo = sequelize.models[tableName];
-      if (!modelo) {
-        errores.push(`Modelo no encontrado para ${tableName}`);
-        continue;
-      }
-
-      const resultado = await procesarLote(modelo, datos, 100, duplicados);
-      if (!resultado.success) {
-        errores.push(`Error al procesar ${tableName}`);
+      if (tableName === 'Partidas') {
+        // Procesar en ambas tablas
+        const resultado = await procesarPartidasEnAmbasTablas(datos, 100, duplicados);
+        if (!resultado.success) {
+          errores.push('Error al procesar partidas');
+        } else {
+          totalRegistrosProcesados += resultado.totalRegistrosProcesados;
+          totalRegistrosIgnorados += resultado.totalRegistrosIgnorados;
+        }
       } else {
-        totalRegistrosProcesados += resultado.totalRegistrosProcesados;
-        totalRegistrosIgnorados += resultado.totalRegistrosIgnorados;
+        const modelo = sequelize.models[tableName];
+        if (!modelo) {
+          errores.push(`Modelo no encontrado para ${tableName}`);
+          continue;
+        }
+
+        const resultado = await procesarLote(modelo, datos, 100, duplicados);
+        if (!resultado.success) {
+          errores.push(`Error al procesar ${tableName}`);
+        } else {
+          totalRegistrosProcesados += resultado.totalRegistrosProcesados;
+          totalRegistrosIgnorados += resultado.totalRegistrosIgnorados;
+        }
       }
     }
 
@@ -563,409 +604,123 @@ app.use((err, req, res, next) => {
 
 app.get('/api/vista-general', async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = (page - 1) * limit;
+
+    // Obtener el total de registros
+    const [totalResult] = await sequelize.query(
+      'SELECT COUNT(*) as total FROM 501_datos_generales'
+    );
+    const total = totalResult[0].total;
+
     const [datosGenerales] = await sequelize.query(
-      'SELECT * FROM 501_datos_generales'
+      `SELECT * FROM 501_datos_generales LIMIT ${limit} OFFSET ${offset}`
     );
     
     const [transporteMercancias] = await sequelize.query(
-      'SELECT * FROM 502_transporte_mercancias'
+      `SELECT * FROM 502_transporte_mercancias LIMIT ${limit} OFFSET ${offset}`
     );
 
     const [guias] = await sequelize.query(
-      'SELECT * FROM 503_guias'
+      `SELECT * FROM 503_guias LIMIT ${limit} OFFSET ${offset}`
     );
 
-    const [contenedores] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Numero_Contenedor,
-        Clave_Tipo_Contenedor,
-        Fecha_Pago_Real
-      FROM 504_contenedores
-    `);
+    const [contenedores] = await sequelize.query(
+      `SELECT * FROM 504_contenedores LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para facturas
-    const [facturas] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Fecha_Facturacion,
-        Numero_Factura,
-        Clave_Termino_Facturacion,
-        Clave_Moneda_Facturacion,
-        Valor_Dolares,
-        Valor_Moneda_Extranjera,
-        Clave_Pais_Facturacion,
-        Clave_Entidad_Federativa_Facturacion,
-        Identificacion_Fiscal_Proveedor,
-        Proveedor_Mercancia,
-        Calle_Domicilio_Proveedor,
-        Numero_Interior_Domicilio_Proveedor,
-        Numero_Exterior_Domicilio_Proveedor,
-        Codigo_Postal_Domicilio_Proveedor,
-        Municipio_Ciudad_Domicilio_Proveedor,
-        Fecha_Pago_Real
-      FROM 505_facturas
-    `);
+    const [facturas] = await sequelize.query(
+      `SELECT * FROM 505_facturas LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    const [fechasPedimento] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Clave_Tipo_Fecha,
-        Fecha_Operacion,
-        Fecha_Validacion_Pago_Real
-      FROM 506_fechas_pedimento
-    `);
+    const [fechasPedimento] = await sequelize.query(
+      `SELECT * FROM 506_fechas_pedimento LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para casos pedimento
-    const [casosPedimento] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Clave_Caso,
-        Identificador_Caso,
-        Clave_Tipo_Pedimento,
-        Complemento_Caso,
-        Fecha_Validacion_Pago_Real
-      FROM 507_casos_pedimento
-    `);
+    const [casosPedimento] = await sequelize.query(
+      `SELECT * FROM 507_casos_pedimento LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para cuentas aduaneras garantía pedimento
-    const [cuentasAduanerasGarantiaPedimento] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Clave_Institucion_Emisor,
-        Numero_Cuenta,
-        Folio_Constancia,
-        Fecha_Constancia,
-        Clave_Tipo_Cuenta,
-        Clave_Garantia,
-        Valor_Unitario_Titulo,
-        Total_Garantia,
-        Cantidad_Unidades_Medida_Precio_Estimado,
-        Titulos_Asignados,
-        Fecha_Pago_Real
-      FROM 508_cuentas_aduaneras_garantia_pedimento
-    `);
+    const [cuentasAduanerasGarantiaPedimento] = await sequelize.query(
+      `SELECT * FROM 508_cuentas_aduaneras_garantia_pedimento LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para tasas pedimento
-    const [tasasPedimento] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Clave_Contribucion,
-        Tasa_Contribucion,
-        Clave_Tipo_Tasa,
-        Clave_Tipo_Pedimento,
-        Fecha_Pago_Real
-      FROM 509_tasas_pedimento
-    `);
+    const [tasasPedimento] = await sequelize.query(
+      `SELECT * FROM 509_tasas_pedimento LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para contribuciones pedimento
-    const [contribucionesPedimento] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Clave_Contribucion,
-        Clave_Forma_Pago,
-        Importe_Pago,
-        Clave_Tipo_Pedimento,
-        Fecha_Pago_Real
-      FROM 510_contribuciones_pedimento
-    `);
+    const [contribucionesPedimento] = await sequelize.query(
+      `SELECT * FROM 510_contribuciones_pedimento LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Modificar solo la consulta de observaciones pedimento
-    const [observacionesPedimento] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Secuencia_Observacion,
-        CAST(CONVERT(Observaciones USING utf8mb4) AS CHAR CHARACTER SET utf8mb4) as Observaciones,
-        DATE_FORMAT(Fecha_Validacion_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Validacion_Pago_Real
-      FROM 511_observaciones_pedimento
-    `);
+    const [observacionesPedimento] = await sequelize.query(
+      `SELECT * FROM 511_observaciones_pedimento LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar un log específico para esta tabla
-    console.log('Observaciones Pedimento:', observacionesPedimento?.length || 0);
+    const [descargosMercancias] = await sequelize.query(
+      `SELECT * FROM 512_descargos_mercancias LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para descargos mercancias
-    const [descargosMercancias] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Patente_Aduanal_Original,
-        Numero_Pedimento_Original,
-        Clave_Sec_Aduanera_Despacho_Original,
-        Clave_Documento_Original,
-        DATE_FORMAT(Fecha_Operacion_Original, '%Y-%m-%d %H:%i:%s') as Fecha_Operacion_Original,
-        Fraccion_Arancelaria_Original,
-        Clave_Unidad_Medida_Original,
-        Cantidad_Mercancia_Descargada,
-        Clave_Tipo_Pedimento,
-        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
-      FROM 512_descargos_mercancias
-    `);
+    const [destinatariosMercancia] = await sequelize.query(
+      `SELECT * FROM 520_destinatarios_mercancia LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para destinatarios mercancia
-    const [destinatariosMercancia] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Identificacion_Fiscal_Destinatario,
-        Nombre_Destinatario,
-        Calle_Domicilio_Destinatario,
-        Numero_Interior_Domicilio_Destinatario,
-        Numero_Exterior_Domicilio_Destinatario,
-        Codigo_Postal_Domicilio_Destinatario,
-        Municipio_Ciudad_Domicilio_Destinatario,
-        Clave_Pais_Domicilio_Destinatario,
-        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
-      FROM 520_destinatarios_mercancia
-    `);
+    const [partidas] = await sequelize.query(
+      `SELECT * FROM 551_partidas LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para partidas
-    const [partidas] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Fraccion_Arancelaria,
-        Secuencia_Fraccion_Arancelaria,
-        Subdivision_Fraccion_Arancelaria,
-        Descripcion_Mercancia,
-        Precio_Unitario,
-        Valor_Aduana,
-        Valor_Comercial,
-        Valor_Dolares,
-        Cantidad_Mercancias_Unidad_Medida_Comercial,
-        Clave_Unidad_Medida_Comercial,
-        Cantidad_Mercancia_Unidad_Medida_Tarifa,
-        Clave_Unidad_Medida_Tarifa,
-        Valor_Agregado,
-        Clave_Vinculacion,
-        Clave_Metodo_Valorizacion,
-        Codigo_Mercancia_Producto,
-        Marca_Mercancia_Producto,
-        Modelo_Mercancia_Producto,
-        Clave_Pais_Origen_Destino,
-        Clave_Pais_Comprador_Vendedor,
-        Clave_Entidad_Federativa_Origen,
-        Clave_Entidad_Federativa_Destino,
-        Clave_Entidad_Federativa_Comprador,
-        Clave_Entidad_Federativa_Vendedor,
-        Clave_Tipo_Operacion,
-        Clave_Documento,
-        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
-      FROM 551_partidas
-    `);
+    const [mercancias] = await sequelize.query(
+      `SELECT * FROM 552_mercancias LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para mercancias
-    const [mercancias] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Fraccion_Arancelaria,
-        Secuencia_Fraccion_Arancelaria,
-        VIN_Numero_Serie,
-        Kilometraje_Vehiculo,
-        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
-      FROM 552_mercancias
-    `);
+    const [permisosPartida] = await sequelize.query(
+      `SELECT * FROM 553_permiso_partida LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para permisos partida
-    const [permisosPartida] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Fraccion_Arancelaria,
-        Secuencia_Fraccion_Arancelaria,
-        Clave_Permiso,
-        Firma_Descargo,
-        Numero_Permiso,
-        Valor_Comercial_Dolares,
-        Cantidad_Mercancia_Unidades_Medida_Tarifa,
-        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
-      FROM 553_permiso_partida
-    `);
+    const [casosPartida] = await sequelize.query(
+      `SELECT * FROM 554_casos_partida LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Actualizar la consulta para casos partida
-    const [casosPartida] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Fraccion_Arancelaria,
-        Secuencia_Fraccion_Arancelaria,
-        Clave_Caso,
-        Identificador_Caso,
-        Complemento_Caso,
-        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
-      FROM 554_casos_partida
-    `);
+    const [cuentasAduanerasGarantiaPartida] = await sequelize.query(
+      `SELECT * FROM 555_cuentas_aduaneras_garantia_partida LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para cuentas aduaneras garantía partida
-    const [cuentasAduanerasGarantiaPartida] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Fraccion_Arancelaria,
-        Secuencia_Fraccion_Arancelaria,
-        Clave_Institucion_Emisor,
-        Numero_Cuenta,
-        Folio_Constancia,
-        DATE_FORMAT(Fecha_Constancia, '%Y-%m-%d') as Fecha_Constancia,
-        Clave_Garantia,
-        Valor_Unitario_Titulo,
-        Total_Garantia,
-        Cantidad_Unidades_Medida_Precio_Estimado,
-        Titulos_Asignados,
-        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
-      FROM 555_cuentas_aduaneras_garantia_partida
-    `);
+    const [tasasContribucionesPartida] = await sequelize.query(
+      `SELECT * FROM 556_tasas_contribuciones_partida LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para tasas contribuciones partida
-    const [tasasContribucionesPartida] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Fraccion_Arancelaria,
-        Secuencia_Fraccion_Arancelaria,
-        Clave_Contribucion,
-        Tasa_Contribucion,
-        Clave_Tipo_Tasa,
-        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
-      FROM 556_tasas_contribuciones_partida
-    `);
+    const [contribucionesPartida] = await sequelize.query(
+      `SELECT * FROM 557_contribuciones_partida LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para contribuciones partida
-    const [contribucionesPartida] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Fraccion_Arancelaria,
-        Secuencia_Fraccion_Arancelaria,
-        Clave_Contribucion,
-        Clave_Forma_Pago,
-        Importe_Pago,
-        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
-      FROM 557_contribuciones_partida
-    `);
+    const [observacionesPartida] = await sequelize.query(
+      `SELECT * FROM 558_observaciones_partida LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para observaciones partida
-    const [observacionesPartida] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Fraccion_Arancelaria,
-        Secuencia_Fraccion_Arancelaria,
-        Secuencia_Observacion,
-        Observaciones,
-        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
-      FROM 558_observaciones_partida
-    `);
+    const [rectificaciones] = await sequelize.query(
+      `SELECT * FROM 701_rectificaciones LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para rectificaciones
-    const [rectificaciones] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Clave_Documento,
-        DATE_FORMAT(Fecha_Pago, '%Y-%m-%d') as Fecha_Pago,
-        Numero_Pedimento_Anterior,
-        Patente_Aduanal_Anterior,
-        Clave_Sec_Aduanera_Despacho_Anterior,
-        Clave_Documento_Anterior,
-        DATE_FORMAT(Fecha_Operacion_Anterior, '%Y-%m-%d') as Fecha_Operacion_Anterior,
-        Numero_Pedimento_Original,
-        Patente_Aduanal_Original,
-        Clave_Sec_Aduanera_Despacho_Original,
-        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
-      FROM 701_rectificaciones
-    `);
+    const [diferenciasContribucionesPedimento] = await sequelize.query(
+      `SELECT * FROM 702_diferencias_contribuciones_pedimento LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para diferencias contribuciones pedimento
-    const [diferenciasContribucionesPedimento] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Clave_Contribucion,
-        Clave_Forma_Pago,
-        Importe_Pago,
-        Clave_Tipo_Pedimento,
-        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
-      FROM 702_diferencias_contribuciones_pedimento
-    `);
+    const [incidenciasReconocimientoAduanero] = await sequelize.query(
+      `SELECT * FROM incidencias_reconocimiento_aduanero LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para incidencias reconocimiento aduanero
-    const [incidenciasReconocimientoAduanero] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Consecutivo_Remesa,
-        Numero_Seleccion_Automatizada,
-        DATE_FORMAT(Fecha_Inicio_Reconocimiento, '%Y-%m-%d') as Fecha_Inicio_Reconocimiento,
-        Hora_Inicio_Reconocimiento,
-        DATE_FORMAT(Fecha_Fin_Reconocimiento, '%Y-%m-%d') as Fecha_Fin_Reconocimiento,
-        Hora_Fin_Reconocimiento,
-        Fraccion_Arancelaria,
-        Secuencia_Fraccion_Arancelaria,
-        Clave_Documento,
-        Clave_Tipo_Operacion,
-        Grado_Incidencia,
-        DATE_FORMAT(Fecha_Seleccion_Automatizada, '%Y-%m-%d') as Fecha_Seleccion_Automatizada
-      FROM incidencias_reconocimiento_aduanero
-    `);
+    const [seleccionAutomatizada] = await sequelize.query(
+      `SELECT * FROM seleccion_automatizada LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para resumen
-    const [resumen] = await sequelize.query(`
-      SELECT 
-        Folio as Folio_Primaria,
-        RFCoPatenteAduanal,
-        DATE_FORMAT(Fecha_Inicial, '%Y-%m-%d') as Fecha_Inicial,
-        DATE_FORMAT(Fecha_Final, '%Y-%m-%d') as Fecha_Final,
-        DATE_FORMAT(Fecha_Ejecucion, '%Y-%m-%d') as Fecha_Ejecucion,
-        Total_Fracciones,
-        Total_Contribuciones
-      FROM resumen
-    `);
+    const [resumen] = await sequelize.query(
+      `SELECT * FROM resumen LIMIT ${limit} OFFSET ${offset}`
+    );
 
-    // Agregar la consulta para selección automatizada
-    const [seleccionAutomatizada] = await sequelize.query(`
-      SELECT 
-        Patente_Aduanal,
-        Numero_Pedimento,
-        Clave_Sec_Aduanera_Despacho,
-        Consecutivo_Remesa,
-        Numero_Seleccion_Automatizada,
-        DATE_FORMAT(Fecha_Seleccion_Automatizada, '%Y-%m-%d') as Fecha_Seleccion_Automatizada,
-        Hora_Seleccion_Automatizada,
-        Semaforo_Fiscal,
-        Clave_Documento,
-        Clave_Tipo_Operacion
-      FROM seleccion_automatizada
-    `);
+    const [universoImmex] = await sequelize.query(
+      `SELECT * FROM universo_immex LIMIT ${limit} OFFSET ${offset}`
+    );
 
     res.json({
       datosGenerales,
@@ -993,11 +748,21 @@ app.get('/api/vista-general', async (req, res) => {
       diferenciasContribucionesPedimento,
       incidenciasReconocimientoAduanero,
       seleccionAutomatizada,
-      resumen
+      resumen,
+      universoImmex,
+      pagination: {
+        page,
+        limit,
+        total
+      }
     });
   } catch (error) {
     console.error('Error detallado:', error);
-    res.status(500).json({ error: 'Error al obtener datos', details: error.message });
+    res.status(500).json({ 
+      error: 'Error al obtener datos', 
+      message: error.message,
+      details: error.stack 
+    });
   }
 });
 
