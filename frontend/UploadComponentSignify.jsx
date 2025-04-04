@@ -9,7 +9,7 @@ import Container from '@mui/material/Container';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 
-const UploadComponent = () => {
+const UploadComponentSignify = () => {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
   const [files, setFiles] = useState([]);
@@ -30,7 +30,7 @@ const UploadComponent = () => {
     const formData = new FormData();
     formData.append('file', acceptedFiles[0]);
 
-    axios.post('  http://localhost:3000/upload', formData, {
+    axios.post('http://localhost:3000/upload-signify', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -87,7 +87,7 @@ const UploadComponent = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:3000/upload', {
+      const response = await fetch('http://localhost:3000/upload-signify', {
         method: 'POST',
         body: formData,
       });
@@ -130,6 +130,9 @@ const UploadComponent = () => {
 
   return (
     <Container maxWidth="md" style={{ marginTop: '100px' }}>
+      <Typography variant="h4" gutterBottom align="center" color="primary">
+        Signify - Carga de Archivos
+      </Typography>
       <Box {...getRootProps()} sx={{ border: '2px dashed #007BFF', padding: '20px', borderRadius: '10px', textAlign: 'center' }}>
         <input {...getInputProps()} />
         <Typography variant="h6" color="primary">Arrastra un archivo ZIP aquí, o haz clic para seleccionar uno</Typography>
@@ -198,4 +201,4 @@ const UploadComponent = () => {
   );
 };
 
-export default UploadComponent;
+export default UploadComponentSignify; 

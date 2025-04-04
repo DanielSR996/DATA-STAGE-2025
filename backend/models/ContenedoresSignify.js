@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelizeSignify = require('../config/database_signify');
 
 const Contenedores = sequelize.define('Contenedores', {
   Patente_Aduanal: {
