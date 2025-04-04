@@ -25,7 +25,9 @@
         ListItemIcon,
         ListItemText,
         Button,
-        IconButton
+        IconButton,
+        Backdrop,
+        CircularProgress
     } from '@mui/material';
     import CloseIcon from '@mui/icons-material/Close';
     import Checkbox from '@mui/material/Checkbox';
@@ -76,6 +78,7 @@
         const [hasMore, setHasMore] = useState(true);
         const [isLoading, setIsLoading] = useState(false);
         const [totalRecords, setTotalRecords] = useState(0);
+        const [cargandoExcel, setCargandoExcel] = useState(false);
 
         const [tablasSeleccionadas, setTablasSeleccionadas] = useState([
             '501_datos_generales',
@@ -162,28 +165,7 @@
                 return;
             }
 
-            const loadingIndicator = document.createElement('div');
-            loadingIndicator.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: rgba(255, 255, 255, 0.9);
-                padding: 20px;
-                border-radius: 8px;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 10px;
-            `;
-            loadingIndicator.innerHTML = `
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Cargando...</span>
-                </div>
-                <p style="margin: 0; color: #333;">Exportando datos a Excel...</p>
-            `;
-            document.body.appendChild(loadingIndicator);
+            setCargandoExcel(true);
 
             try {
                 const response = await fetch('http://localhost:3000/api/exportar-excel', {
@@ -215,7 +197,7 @@
                 console.error('Error:', error);
                 alert('Error al exportar a Excel: ' + error.message);
             } finally {
-                document.body.removeChild(loadingIndicator);
+                setCargandoExcel(false);
                 setDialogoExportarAbierto(false);
             }
         };
@@ -2779,6 +2761,22 @@
                     </Container>
                 </Box>
                 <DialogoExportarExcel />
+                
+                <Backdrop
+                    sx={{ 
+                        color: '#fff', 
+                        zIndex: 1400,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2
+                    }}
+                    open={cargandoExcel}
+                >
+                    <CircularProgress color="inherit" size={60} />
+                    <Typography variant="h6" component="div">
+                        Exportando datos a Excel...
+                    </Typography>
+                </Backdrop>
             </>
         );
     }
