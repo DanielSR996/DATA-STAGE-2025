@@ -825,95 +825,150 @@ app.get('/api/vista-general', async (req, res) => {
 
 app.post('/api/exportar-excel', async (req, res) => {
     try {
-        const { fechaInicio, fechaFin, data, parte, totalPartes } = req.body;
+        const { fechaInicio, fechaFin, tablas } = req.body;
 
-        // Validación básica de los datos
-        if (!fechaInicio || !fechaFin || !data || typeof data !== 'object') {
-            return res.status(400).json({ 
-                error: 'Datos inválidos', 
-                message: 'Se requieren fechaInicio, fechaFin y data válidos' 
-            });
+        if (!fechaInicio || !fechaFin || !tablas || !Array.isArray(tablas)) {
+            return res.status(400).json({ error: 'Fechas y tablas son requeridas' });
         }
 
-        // Crear un nuevo libro de Excel
-        const wb = xlsx.utils.book_new();
+        const workbook = xlsx.utils.book_new();
 
-        // Mapeo de nombres largos a nombres cortos (máximo 31 caracteres)
+        // Mapeo de nombres de tablas a nombres de hojas (más cortos)
         const nombreHojas = {
-            datosGenerales: 'Datos_Generales',
-            transporteMercancias: 'Transporte',
-            guias: 'Guias',
-            contenedores: 'Contenedores',
-            facturas: 'Facturas',
-            fechasPedimento: 'Fechas_Pedimento',
-            casosPedimento: 'Casos_Pedimento',
-            cuentasAduanerasGarantiaPedimento: 'Cuentas_Garantia_Ped',
-            tasasPedimento: 'Tasas_Pedimento',
-            contribucionesPedimento: 'Contribuciones_Ped',
-            observacionesPedimento: 'Observaciones_Ped',
-            descargosMercancias: 'Descargos',
-            destinatariosMercancia: 'Destinatarios',
-            partidas: 'Partidas',
-            mercancias: 'Mercancias',
-            permisosPartida: 'Permisos_Partida',
-            casosPartida: 'Casos_Partida',
-            cuentasAduanerasGarantiaPartida: 'Cuentas_Garantia_Part',
-            tasasContribucionesPartida: 'Tasas_Contribuciones',
-            contribucionesPartida: 'Contribuciones_Part',
-            observacionesPartida: 'Observaciones_Part',
-            rectificaciones: 'Rectificaciones',
-            diferenciasContribucionesPedimento: 'Diferencias_Contrib',
-            incidenciasReconocimientoAduanero: 'Incidencias',
-            seleccionAutomatizada: 'Seleccion_Auto',
-            resumen: 'Resumen'
+            '501_datos_generales': '501 - Datos Gen',
+            '502_transporte_mercancias': '502 - Transp Merc',
+            '503_guias': '503 - Guías',
+            '504_contenedores': '504 - Contenedores',
+            '505_facturas': '505 - Facturas',
+            '506_fechas_pedimento': '506 - Fechas Ped',
+            '507_casos_pedimento': '507 - Casos Ped',
+            '508_cuentas_aduaneras_garantia_pedimento': '508 - Cuentas Adu',
+            '509_tasas_pedimento': '509 - Tasas Ped',
+            '510_contribuciones_pedimento': '510 - Contrib Ped',
+            '511_observaciones_pedimento': '511 - Obs Ped',
+            '512_descargos_mercancias': '512 - Descargos',
+            '520_destinatarios_mercancia': '520 - Destinatarios',
+            '551_partidas': '551 - Partidas',
+            '552_mercancias': '552 - Mercancías',
+            '553_permiso_partida': '553 - Permiso Part',
+            '554_casos_partida': '554 - Casos Part',
+            '555_cuentas_aduaneras_garantia_partida': '555 - Cuentas Part',
+            '556_tasas_contribuciones_partida': '556 - Tasas Part',
+            '557_contribuciones_partida': '557 - Contrib Part',
+            '558_observaciones_partida': '558 - Obs Part',
+            '701_rectificaciones': '701 - Rectificaciones',
+            '702_diferencias_contribuciones_pedimento': '702 - Dif Contrib',
+            'incidencias_reconocimiento_aduanero': 'Incidencias',
+            'seleccion_automatizada': 'Selección Auto',
+            'resumen': 'Resumen'
         };
 
-        // Procesar cada tabla
-        for (const [nombreTabla, datos] of Object.entries(data)) {
+        // Lista de todas las tablas disponibles en la base de datos
+        const todasLasTablas = [
+            '501_datos_generales',
+            '502_transporte_mercancias',
+            '503_guias',
+            '504_contenedores',
+            '505_facturas',
+            '506_fechas_pedimento',
+            '507_casos_pedimento',
+            '508_cuentas_aduaneras_garantia_pedimento',
+            '509_tasas_pedimento',
+            '510_contribuciones_pedimento',
+            '511_observaciones_pedimento',
+            '512_descargos_mercancias',
+            '520_destinatarios_mercancia',
+            '551_partidas',
+            '552_mercancias',
+            '553_permiso_partida',
+            '554_casos_partida',
+            '555_cuentas_aduaneras_garantia_partida',
+            '556_tasas_contribuciones_partida',
+            '557_contribuciones_partida',
+            '558_observaciones_partida',
+            '701_rectificaciones',
+            '702_diferencias_contribuciones_pedimento',
+            'incidencias_reconocimiento_aduanero',
+            'seleccion_automatizada',
+            'resumen'
+        ];
+
+        // Verificar la conexión a la base de datos
+        try {
+            await sequelize.authenticate();
+            console.log('✅ Conexión a la base de datos verificada');
+        } catch (error) {
+            console.error('❌ Error al conectar con la base de datos:', error);
+            return res.status(500).json({ error: 'Error al conectar con la base de datos' });
+        }
+
+        // Procesar solo las tablas seleccionadas
+        for (const tabla of tablas) {
             try {
-                if (Array.isArray(datos) && datos.length > 0) {
-                    const nombreCorto = nombreHojas[nombreTabla];
-                    if (!nombreCorto) {
-                        console.warn(`Nombre no encontrado para la tabla: ${nombreTabla}`);
-                        continue;
-                    }
-
-                    // Crear una hoja de Excel para los datos
-                    const ws = xlsx.utils.json_to_sheet(datos);
-                    const sheetName = parte ? `${nombreCorto}_${parte}` : nombreCorto;
-                    xlsx.utils.book_append_sheet(wb, ws, sheetName);
-
-                    console.log(`Procesada tabla ${nombreTabla} con ${datos.length} registros`);
+                if (!nombreHojas[tabla]) {
+                    console.warn(`Tabla ${tabla} no encontrada en la configuración`);
+                    continue;
                 }
-            } catch (err) {
-                console.error(`Error al procesar tabla ${nombreTabla}:`, err);
-                continue;
+
+                // Verificar si la tabla existe
+                const [tableExists] = await sequelize.query(
+                    `SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = '${sequelize.config.database}' AND table_name = '${tabla}'`
+                );
+
+                if (tableExists[0].count === 0) {
+                    console.warn(`❌ La tabla ${tabla} no existe en la base de datos`);
+                    continue;
+                }
+
+                // Consulta para obtener todos los datos de la tabla
+                const query = `SELECT * FROM ${tabla}`;
+
+                console.log(`\n🔍 Consultando tabla ${tabla}`);
+                console.log(`📝 Query: ${query}`);
+
+                const [rows] = await sequelize.query(query);
+                
+                // Asegurarse de que rows sea un array
+                const data = Array.isArray(rows) ? rows : [];
+
+                // Crear una hoja de Excel
+                const worksheet = xlsx.utils.json_to_sheet(data);
+                xlsx.utils.book_append_sheet(workbook, worksheet, nombreHojas[tabla]);
+
+                if (data.length > 0) {
+                    console.log(`✅ Encontrados ${data.length} registros en ${tabla}`);
+                    // Mostrar un ejemplo de los datos
+                    console.log(`📊 Ejemplo de datos:`, JSON.stringify(data[0], null, 2));
+                } else {
+                    console.log(`⚠️ No se encontraron registros en ${tabla}`);
+                }
+            } catch (error) {
+                console.error(`❌ Error al procesar tabla ${tabla}:`, error);
+                // Crear una hoja vacía en caso de error
+                const worksheet = xlsx.utils.json_to_sheet([]);
+                xlsx.utils.book_append_sheet(workbook, worksheet, nombreHojas[tabla]);
             }
         }
 
-        // Generar el archivo con opciones optimizadas
-        const buffer = xlsx.write(wb, { 
+        // Generar el archivo Excel
+        const buffer = xlsx.write(workbook, { 
             type: 'buffer', 
             bookType: 'xlsx',
-            compression: true,
-            cellStyles: false,
-            cellDates: true
+            compression: true
         });
 
-        // Enviar el archivo
-        const fileName = parte ? 
-            `reporte_${fechaInicio}_${fechaFin}_parte${parte}de${totalPartes}.xlsx` :
-            `reporte_${fechaInicio}_${fechaFin}.xlsx`;
-
+        // Configurar los headers para la descarga
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+        res.setHeader('Content-Disposition', `attachment; filename=reporte_completo.xlsx`);
+
+        // Enviar el archivo
         res.send(buffer);
     } catch (error) {
-        console.error('Error completo:', error);
+        console.error('❌ Error al exportar a Excel:', error);
         res.status(500).json({ 
-            error: 'Error al exportar a Excel', 
+            error: 'Error al generar el archivo Excel',
             message: error.message,
-            details: error.stack 
+            details: error.stack
         });
     }
 });
