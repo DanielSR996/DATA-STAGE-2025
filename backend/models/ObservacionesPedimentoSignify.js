@@ -1,19 +1,24 @@
 const { DataTypes } = require('sequelize');
-const sequelizeSignify = require('../config/database_signify');
+const sequelize = require('../config/database');
 
-const ObservacionesPedimento = sequelizeSignify.define('ObservacionesPedimento', {
+const ObservacionesPedimento = sequelize.define('ObservacionesPedimento', {
   Patente_Aduanal: {
-    type: DataTypes.STRING,
+    type: DataTypes.CHAR(4),
     allowNull: false,
     primaryKey: true
   },
   Numero_Pedimento: {
-    type: DataTypes.STRING,
+    type: DataTypes.CHAR(7),
     allowNull: false,
     primaryKey: true
   },
   Clave_Sec_Aduanera_Despacho: {
-    type: DataTypes.STRING,
+    type: DataTypes.CHAR(3),
+    allowNull: false,
+    primaryKey: true
+  },
+  Fecha_Pago_Real: {
+    type: DataTypes.DATE,
     allowNull: false,
     primaryKey: true
   },
@@ -25,12 +30,12 @@ const ObservacionesPedimento = sequelizeSignify.define('ObservacionesPedimento',
     type: DataTypes.TEXT,
     allowNull: false
   },
-  Fecha_Validacion_Pago_Real: {
-    type: DataTypes.DATE,
+  Clave_Tipo_Pedimento: {
+    type: DataTypes.CHAR(1),
     allowNull: false
   }
 }, {
-  tableName: '511_observaciones_pedimento',
+  tableName: '516_observaciones_pedimento',
   timestamps: false
 });
 
