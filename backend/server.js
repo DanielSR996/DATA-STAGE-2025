@@ -845,8 +845,8 @@ app.post('/api/exportar-excel', async (req, res) => {
             return res.status(500).json({ error: 'Error al conectar con la base de datos' });
         }
 
-        // Procesar todas las tablas disponibles
-        for (const tabla of todasLasTablas) {
+        // Procesar solo las tablas seleccionadas
+        for (const tabla of tablas) {
             try {
                 if (!nombreHojas[tabla]) {
                     console.warn(`Tabla ${tabla} no encontrada en la configuración`);
