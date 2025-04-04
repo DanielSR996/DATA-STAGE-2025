@@ -34,6 +34,7 @@ const IncidenciasReconocimientoAduanero = require('./models/IncidenciasReconocim
 const SeleccionAutomatizada = require('./models/SeleccionAutomatizada');
 const Resumen = require('./models/Resumen');
 const xlsx = require('xlsx');
+const sequelizeSignify = require('./config/database_signify');
 // Importa otros modelos según sea necesario
 
 const app = express();
@@ -317,6 +318,13 @@ const fileToTable = {
     console.error('No se pudo conectar a la base de datos:', error);
   }
 })();
+
+// Sincronizar modelos con la base de datos
+sequelizeSignify.sync({ force: true }).then(() => {
+  console.log('Modelos sincronizados con la base de datos.');
+}).catch(err => {
+  console.error('Error al sincronizar modelos:', err);
+});
 
 // Función para verificar la coincidencia de Total_Fracciones
 async function verificarTotalFracciones(folio, totalFraccionesDeclarado) {
@@ -1138,6 +1146,635 @@ app.post('/api/exportar-excel', async (req, res) => {
             details: error.stack 
         });
     }
+});
+
+// Endpoint para subir archivos de Signify
+app.post('/upload-signify', upload.single('file'), async (req, res) => {
+  try {
+    console.log('\n🚀 Iniciando proceso de carga de archivo Signify');
+    
+    if (!req.file) {
+      console.error('❌ No se ha subido ningún archivo');
+      return res.status(400).send('No se ha subido ningún archivo.');
+    }
+
+    console.log('📁 Archivo recibido:', req.file.originalname);
+    const zip = new AdmZip(req.file.path);
+    const zipEntries = zip.getEntries();
+    console.log(`📚 Número de archivos en el ZIP: ${zipEntries.length}`);
+
+    const errores = [];
+    const datosAInsertar = new Map();
+    const duplicados = new Map();
+    let totalRegistrosProcesados = 0;
+    let totalRegistrosIgnorados = 0;
+
+    // Primero recolectar todos los datos
+    for (const zipEntry of zipEntries) {
+      const fileName = zipEntry.entryName;
+      const fileConfig = Object.entries(fileToTable).find(([key]) => fileName.endsWith(key));
+
+      if (!fileConfig) {
+        console.error(`No se encontró configuración para el archivo: ${fileName}`);
+        continue;
+      }
+
+      const { tableName, columns } = fileConfig[1];
+      const filePath = `uploads/${zipEntry.entryName}`;
+      zip.extractEntryTo(zipEntry, 'uploads', false, true);
+
+      const datos = [];
+      await new Promise((resolve, reject) => {
+        fs.createReadStream(filePath)
+          .pipe(csvParser({ 
+            separator: '|', 
+            headers: columns,
+            skipLines: 1
+          }))
+          .on('data', (row) => datos.push(row))
+          .on('end', () => {
+            fs.unlinkSync(filePath);
+            resolve();
+          })
+          .on('error', reject);
+      });
+
+      datosAInsertar.set(tableName, datos);
+    }
+
+    // Procesar datos generales primero
+    if (datosAInsertar.has('DatosGenerales')) {
+      const resultado = await procesarLote(DatosGenerales, datosAInsertar.get('DatosGenerales'), 100, duplicados);
+      if (!resultado.success) {
+        errores.push('Error al procesar datos generales');
+      } else {
+        totalRegistrosProcesados += resultado.totalRegistrosProcesados;
+        totalRegistrosIgnorados += resultado.totalRegistrosIgnorados;
+      }
+    }
+
+    // Procesar el resto de las tablas
+    for (const [tableName, datos] of datosAInsertar) {
+      if (tableName === 'DatosGenerales') continue;
+
+      const modelo = sequelizeSignify.models[tableName];
+      if (!modelo) {
+        errores.push(`Modelo no encontrado para ${tableName}`);
+        continue;
+      }
+
+      const resultado = await procesarLote(modelo, datos, 100, duplicados);
+      if (!resultado.success) {
+        errores.push(`Error al procesar ${tableName}`);
+      } else {
+        totalRegistrosProcesados += resultado.totalRegistrosProcesados;
+        totalRegistrosIgnorados += resultado.totalRegistrosIgnorados;
+      }
+    }
+
+    // Verificar Total_Fracciones
+    const resumen = datosAInsertar.get('Resumen');
+    if (resumen && resumen.length > 0) {
+      const totalFraccionesCoincide = await verificarTotalFracciones(
+        resumen[0].Folio,
+        parseInt(resumen[0].Total_Fracciones)
+      );
+      
+      if (!totalFraccionesCoincide) {
+        errores.push('El Total_Fracciones no coincide con los datos procesados');
+      }
+    }
+
+    res.status(200).json({
+      mensaje: errores.length === 0 ? 'Archivo procesado con éxito' : 'Archivo procesado con advertencias',
+      errores: errores,
+      duplicados: Object.fromEntries(duplicados),
+      duplicated: duplicados.size > 0,
+      duplicatedFiles: Array.from(duplicados.entries()).map(([tabla, registros]) => ({
+        tabla,
+        registros: registros.map(registro => ({
+          Patente_Aduanal: registro.Patente_Aduanal,
+          Numero_Pedimento: registro.Numero_Pedimento,
+          Clave_Sec_Aduanera_Despacho: registro.Clave_Sec_Aduanera_Despacho
+        }))
+      })),
+      totalRegistros: Array.from(datosAInsertar.values()).reduce((acc, datos) => acc + datos.length, 0),
+      registrosProcesados: totalRegistrosProcesados,
+      registrosIgnorados: totalRegistrosIgnorados
+    });
+  } catch (error) {
+    console.error('❌ Error al procesar el archivo:', error);
+    res.status(500).json({
+      error: 'Error al procesar el archivo',
+      detalles: error.message
+    });
+  }
+});
+
+// Endpoint para obtener vista general de Signify
+app.get('/api/vista-general-signify', async (req, res) => {
+  try {
+    const [datosGenerales] = await sequelizeSignify.query(
+      'SELECT * FROM 501_datos_generales'
+    );
+    
+    const [transporteMercancias] = await sequelizeSignify.query(
+      'SELECT * FROM 502_transporte_mercancias'
+    );
+
+    const [guias] = await sequelizeSignify.query(
+      'SELECT * FROM 503_guias'
+    );
+
+    const [contenedores] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Numero_Contenedor,
+        Clave_Tipo_Contenedor,
+        Fecha_Pago_Real
+      FROM 504_contenedores
+    `);
+
+    const [facturas] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fecha_Facturacion,
+        Numero_Factura,
+        Clave_Termino_Facturacion,
+        Clave_Moneda_Facturacion,
+        Valor_Dolares,
+        Valor_Moneda_Extranjera,
+        Clave_Pais_Facturacion,
+        Clave_Entidad_Federativa_Facturacion,
+        Identificacion_Fiscal_Proveedor,
+        Proveedor_Mercancia,
+        Calle_Domicilio_Proveedor,
+        Numero_Interior_Domicilio_Proveedor,
+        Numero_Exterior_Domicilio_Proveedor,
+        Codigo_Postal_Domicilio_Proveedor,
+        Municipio_Ciudad_Domicilio_Proveedor,
+        Fecha_Pago_Real
+      FROM 505_facturas
+    `);
+
+    const [fechasPedimento] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Clave_Tipo_Fecha,
+        Fecha_Operacion,
+        Fecha_Validacion_Pago_Real
+      FROM 506_fechas_pedimento
+    `);
+
+    const [casosPedimento] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Clave_Caso,
+        Identificador_Caso,
+        Clave_Tipo_Pedimento,
+        Complemento_Caso,
+        Fecha_Validacion_Pago_Real
+      FROM 507_casos_pedimento
+    `);
+
+    const [cuentasAduanerasGarantiaPedimento] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Clave_Institucion_Emisor,
+        Numero_Cuenta,
+        Folio_Constancia,
+        Fecha_Constancia,
+        Clave_Tipo_Cuenta,
+        Clave_Garantia,
+        Valor_Unitario_Titulo,
+        Total_Garantia,
+        Cantidad_Unidades_Medida_Precio_Estimado,
+        Titulos_Asignados,
+        Fecha_Pago_Real
+      FROM 508_cuentas_aduaneras_garantia_pedimento
+    `);
+
+    const [tasasPedimento] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Clave_Contribucion,
+        Tasa_Contribucion,
+        Clave_Tipo_Tasa,
+        Clave_Tipo_Pedimento,
+        Fecha_Pago_Real
+      FROM 509_tasas_pedimento
+    `);
+
+    const [contribucionesPedimento] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Clave_Contribucion,
+        Clave_Forma_Pago,
+        Importe_Pago,
+        Clave_Tipo_Pedimento,
+        Fecha_Pago_Real
+      FROM 510_contribuciones_pedimento
+    `);
+
+    const [observacionesPedimento] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Secuencia_Observacion,
+        CAST(CONVERT(Observaciones USING utf8mb4) AS CHAR CHARACTER SET utf8mb4) as Observaciones,
+        DATE_FORMAT(Fecha_Validacion_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Validacion_Pago_Real
+      FROM 511_observaciones_pedimento
+    `);
+
+    const [descargosMercancias] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Patente_Aduanal_Original,
+        Numero_Pedimento_Original,
+        Clave_Sec_Aduanera_Despacho_Original,
+        Clave_Documento_Original,
+        DATE_FORMAT(Fecha_Operacion_Original, '%Y-%m-%d %H:%i:%s') as Fecha_Operacion_Original,
+        Fraccion_Arancelaria_Original,
+        Clave_Unidad_Medida_Original,
+        Cantidad_Mercancia_Descargada,
+        Clave_Tipo_Pedimento,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 512_descargos_mercancias
+    `);
+
+    const [destinatariosMercancia] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Identificacion_Fiscal_Destinatario,
+        Nombre_Destinatario,
+        Calle_Domicilio_Destinatario,
+        Numero_Interior_Domicilio_Destinatario,
+        Numero_Exterior_Domicilio_Destinatario,
+        Codigo_Postal_Domicilio_Destinatario,
+        Municipio_Ciudad_Domicilio_Destinatario,
+        Clave_Pais_Domicilio_Destinatario,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 520_destinatarios_mercancia
+    `);
+
+    const [partidas] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Subdivision_Fraccion_Arancelaria,
+        Descripcion_Mercancia,
+        Precio_Unitario,
+        Valor_Aduana,
+        Valor_Comercial,
+        Valor_Dolares,
+        Cantidad_Mercancias_Unidad_Medida_Comercial,
+        Clave_Unidad_Medida_Comercial,
+        Cantidad_Mercancia_Unidad_Medida_Tarifa,
+        Clave_Unidad_Medida_Tarifa,
+        Valor_Agregado,
+        Clave_Vinculacion,
+        Clave_Metodo_Valorizacion,
+        Codigo_Mercancia_Producto,
+        Marca_Mercancia_Producto,
+        Modelo_Mercancia_Producto,
+        Clave_Pais_Origen_Destino,
+        Clave_Pais_Comprador_Vendedor,
+        Clave_Entidad_Federativa_Origen,
+        Clave_Entidad_Federativa_Destino,
+        Clave_Entidad_Federativa_Comprador,
+        Clave_Entidad_Federativa_Vendedor,
+        Clave_Tipo_Operacion,
+        Clave_Documento,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 551_partidas
+    `);
+
+    const [mercancias] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        VIN_Numero_Serie,
+        Kilometraje_Vehiculo,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 552_mercancias
+    `);
+
+    const [permisosPartida] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Clave_Permiso,
+        Firma_Descargo,
+        Numero_Permiso,
+        Valor_Comercial_Dolares,
+        Cantidad_Mercancia_Unidades_Medida_Tarifa,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 553_permiso_partida
+    `);
+
+    const [casosPartida] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Clave_Caso,
+        Identificador_Caso,
+        Complemento_Caso,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 554_casos_partida
+    `);
+
+    const [cuentasAduanerasGarantiaPartida] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Clave_Institucion_Emisor,
+        Numero_Cuenta,
+        Folio_Constancia,
+        DATE_FORMAT(Fecha_Constancia, '%Y-%m-%d') as Fecha_Constancia,
+        Clave_Garantia,
+        Valor_Unitario_Titulo,
+        Total_Garantia,
+        Cantidad_Unidades_Medida_Precio_Estimado,
+        Titulos_Asignados,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 555_cuentas_aduaneras_garantia_partida
+    `);
+
+    const [tasasContribucionesPartida] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Clave_Contribucion,
+        Tasa_Contribucion,
+        Clave_Tipo_Tasa,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 556_tasas_contribuciones_partida
+    `);
+
+    const [contribucionesPartida] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Clave_Contribucion,
+        Clave_Forma_Pago,
+        Importe_Pago,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 557_contribuciones_partida
+    `);
+
+    const [observacionesPartida] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Secuencia_Observacion,
+        Observaciones,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 558_observaciones_partida
+    `);
+
+    const [rectificaciones] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Clave_Documento,
+        DATE_FORMAT(Fecha_Pago, '%Y-%m-%d') as Fecha_Pago,
+        Numero_Pedimento_Anterior,
+        Patente_Aduanal_Anterior,
+        Clave_Sec_Aduanera_Despacho_Anterior,
+        Clave_Documento_Anterior,
+        DATE_FORMAT(Fecha_Operacion_Anterior, '%Y-%m-%d') as Fecha_Operacion_Anterior,
+        Numero_Pedimento_Original,
+        Patente_Aduanal_Original,
+        Clave_Sec_Aduanera_Despacho_Original,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 701_rectificaciones
+    `);
+
+    const [diferenciasContribucionesPedimento] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Clave_Contribucion,
+        Clave_Forma_Pago,
+        Importe_Pago,
+        Clave_Tipo_Pedimento,
+        DATE_FORMAT(Fecha_Pago_Real, '%Y-%m-%d %H:%i:%s') as Fecha_Pago_Real
+      FROM 702_diferencias_contribuciones_pedimento
+    `);
+
+    const [incidenciasReconocimientoAduanero] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Consecutivo_Remesa,
+        Numero_Seleccion_Automatizada,
+        DATE_FORMAT(Fecha_Inicio_Reconocimiento, '%Y-%m-%d') as Fecha_Inicio_Reconocimiento,
+        Hora_Inicio_Reconocimiento,
+        DATE_FORMAT(Fecha_Fin_Reconocimiento, '%Y-%m-%d') as Fecha_Fin_Reconocimiento,
+        Hora_Fin_Reconocimiento,
+        Fraccion_Arancelaria,
+        Secuencia_Fraccion_Arancelaria,
+        Clave_Documento,
+        Clave_Tipo_Operacion,
+        Grado_Incidencia,
+        DATE_FORMAT(Fecha_Seleccion_Automatizada, '%Y-%m-%d') as Fecha_Seleccion_Automatizada
+      FROM incidencias_reconocimiento_aduanero
+    `);
+
+    const [resumen] = await sequelizeSignify.query(`
+      SELECT 
+        Folio as Folio_Primaria,
+        RFCoPatenteAduanal,
+        DATE_FORMAT(Fecha_Inicial, '%Y-%m-%d') as Fecha_Inicial,
+        DATE_FORMAT(Fecha_Final, '%Y-%m-%d') as Fecha_Final,
+        DATE_FORMAT(Fecha_Ejecucion, '%Y-%m-%d') as Fecha_Ejecucion,
+        Total_Fracciones,
+        Total_Contribuciones
+      FROM resumen
+    `);
+
+    const [seleccionAutomatizada] = await sequelizeSignify.query(`
+      SELECT 
+        Patente_Aduanal,
+        Numero_Pedimento,
+        Clave_Sec_Aduanera_Despacho,
+        Consecutivo_Remesa,
+        Numero_Seleccion_Automatizada,
+        DATE_FORMAT(Fecha_Seleccion_Automatizada, '%Y-%m-%d') as Fecha_Seleccion_Automatizada,
+        Hora_Seleccion_Automatizada,
+        Semaforo_Fiscal,
+        Clave_Documento,
+        Clave_Tipo_Operacion
+      FROM seleccion_automatizada
+    `);
+
+    res.json({
+      datosGenerales,
+      transporteMercancias,
+      guias,
+      contenedores,
+      facturas,
+      fechasPedimento,
+      casosPedimento,
+      cuentasAduanerasGarantiaPedimento,
+      tasasPedimento,
+      contribucionesPedimento,
+      observacionesPedimento,
+      descargosMercancias,
+      destinatariosMercancia,
+      partidas,
+      mercancias,
+      permisosPartida,
+      casosPartida,
+      cuentasAduanerasGarantiaPartida,
+      tasasContribucionesPartida,
+      contribucionesPartida,
+      observacionesPartida,
+      rectificaciones,
+      diferenciasContribucionesPedimento,
+      incidenciasReconocimientoAduanero,
+      seleccionAutomatizada,
+      resumen
+    });
+  } catch (error) {
+    console.error('Error detallado:', error);
+    res.status(500).json({ error: 'Error al obtener datos', details: error.message });
+  }
+});
+
+// Endpoint para exportar a Excel de Signify
+app.post('/api/exportar-excel-signify', async (req, res) => {
+  try {
+    const { fechaInicio, fechaFin, data, parte, totalPartes } = req.body;
+
+    if (!fechaInicio || !fechaFin || !data || typeof data !== 'object') {
+      return res.status(400).json({ 
+        error: 'Datos inválidos', 
+        message: 'Se requieren fechaInicio, fechaFin y data válidos' 
+      });
+    }
+
+    const wb = xlsx.utils.book_new();
+
+    const nombreHojas = {
+      datosGenerales: 'Datos_Generales',
+      transporteMercancias: 'Transporte',
+      guias: 'Guias',
+      contenedores: 'Contenedores',
+      facturas: 'Facturas',
+      fechasPedimento: 'Fechas_Pedimento',
+      casosPedimento: 'Casos_Pedimento',
+      cuentasAduanerasGarantiaPedimento: 'Cuentas_Garantia_Ped',
+      tasasPedimento: 'Tasas_Pedimento',
+      contribucionesPedimento: 'Contribuciones_Ped',
+      observacionesPedimento: 'Observaciones_Ped',
+      descargosMercancias: 'Descargos',
+      destinatariosMercancia: 'Destinatarios',
+      partidas: 'Partidas',
+      mercancias: 'Mercancias',
+      permisosPartida: 'Permisos_Partida',
+      casosPartida: 'Casos_Partida',
+      cuentasAduanerasGarantiaPartida: 'Cuentas_Garantia_Part',
+      tasasContribucionesPartida: 'Tasas_Contribuciones',
+      contribucionesPartida: 'Contribuciones_Part',
+      observacionesPartida: 'Observaciones_Part',
+      rectificaciones: 'Rectificaciones',
+      diferenciasContribucionesPedimento: 'Diferencias_Contrib',
+      incidenciasReconocimientoAduanero: 'Incidencias',
+      seleccionAutomatizada: 'Seleccion_Auto',
+      resumen: 'Resumen'
+    };
+
+    for (const [nombreTabla, datos] of Object.entries(data)) {
+      try {
+        if (Array.isArray(datos) && datos.length > 0) {
+          const nombreCorto = nombreHojas[nombreTabla];
+          if (!nombreCorto) {
+            console.warn(`Nombre no encontrado para la tabla: ${nombreTabla}`);
+            continue;
+          }
+
+          const ws = xlsx.utils.json_to_sheet(datos);
+          const sheetName = parte ? `${nombreCorto}_${parte}` : nombreCorto;
+          xlsx.utils.book_append_sheet(wb, ws, sheetName);
+
+          console.log(`Procesada tabla ${nombreTabla} con ${datos.length} registros`);
+        }
+      } catch (err) {
+        console.error(`Error al procesar tabla ${nombreTabla}:`, err);
+        continue;
+      }
+    }
+
+    const buffer = xlsx.write(wb, { 
+      type: 'buffer', 
+      bookType: 'xlsx',
+      compression: true,
+      cellStyles: false,
+      cellDates: true
+    });
+
+    const fileName = parte ? 
+      `reporte_signify_${fechaInicio}_${fechaFin}_parte${parte}de${totalPartes}.xlsx` :
+      `reporte_signify_${fechaInicio}_${fechaFin}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error completo:', error);
+    res.status(500).json({ 
+      error: 'Error al exportar a Excel', 
+      message: error.message,
+      details: error.stack 
+    });
+  }
 });
 
 app.listen(PORT, () => {
