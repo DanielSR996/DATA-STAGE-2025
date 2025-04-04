@@ -1,0 +1,49 @@
+const { DataTypes } = require('sequelize');
+const sequelizeSignify = require('../config/database_signify');
+
+const ContribucionesPartida = sequelizeSignify.define('ContribucionesPartida', {
+  Patente_Aduanal: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    primaryKey: true
+  },
+  Numero_Pedimento: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    primaryKey: true
+  },
+  Clave_Sec_Aduanera_Despacho: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    primaryKey: true
+  },
+  Fraccion_Arancelaria: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  Secuencia_Fraccion_Arancelaria: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  },
+  Clave_Contribucion: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  Clave_Forma_Pago: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  Importe_Pago: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: false
+  },
+  Fecha_Pago_Real: {
+    type: DataTypes.DATE,
+    allowNull: false
+  }
+}, {
+  tableName: '557_contribuciones_partida',
+  timestamps: false
+});
+
+module.exports = ContribucionesPartida; 
